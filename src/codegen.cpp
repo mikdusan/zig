@@ -844,29 +844,6 @@ static bool ir_want_fast_math(CodeGen *g, IrInstruction *instruction) {
     return false;
 }
 
-static bool ir_want_runtime_safety_scope(CodeGen *g, Scope *scope) {
-    // TODO memoize
-    while (scope) {
-        if (scope->id == ScopeIdBlock) {
-            ScopeBlock *block_scope = (ScopeBlock *)scope;
-            if (block_scope->safety_set_node)
-                return !block_scope->safety_off;
-        } else if (scope->id == ScopeIdDecls) {
-            ScopeDecls *decls_scope = (ScopeDecls *)scope;
-            if (decls_scope->safety_set_node)
-                return !decls_scope->safety_off;
-        }
-        scope = scope->parent;
-    }
-
-    return (g->build_mode != BuildModeFastRelease &&
-            g->build_mode != BuildModeSmallRelease);
-}
-
-static bool ir_want_runtime_safety(CodeGen *g, IrInstruction *instruction) {
-    return ir_want_runtime_safety_scope(g, instruction->scope);
-}
-
 static Buf *panic_msg_buf(PanicMsgId msg_id) {
     switch (msg_id) {
         case PanicMsgIdCount:

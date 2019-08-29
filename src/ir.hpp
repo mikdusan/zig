@@ -30,4 +30,7 @@ ConstExprValue *const_ptr_pointee(IrAnalyze *ira, CodeGen *codegen, ConstExprVal
         AstNode *source_node);
 const char *float_op_to_name(BuiltinFnId op, bool llvm_name);
 
+bool ir_want_runtime_safety_scope(CodeGen *g, Scope *scope);
+bool ir_want_runtime_safety(CodeGen *g, IrInstruction *instruction);
+
 #endif

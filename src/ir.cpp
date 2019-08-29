@@ -21793,81 +21793,239 @@ static IrInstruction *ir_analyze_instruction_memcpy(IrAnalyze *ira, IrInstructio
 }
 
 static IrInstruction *ir_analyze_instruction_slice(IrAnalyze *ira, IrInstructionSliceSrc *instruction) {
-    IrInstruction *ptr_ptr = instruction->ptr->child;
-    if (type_is_invalid(ptr_ptr->value.type))
+    // overall implementation is:
+    //
+    //   1. perform all comptime safety
+    //   2. analyze instruction
+    //   3. generate IR for runtime safety
+    //
+    // COMPTIME & RUNTIME SAFETY CHART (CRSC)
+    //
+    //   ct := comptime
+    //   rt := runtime
+    //   infer := infer
+    //
+    //   begin := range begin value
+    //   end   := range end value
+    //   len   := operand length value
+    //
+    //   ## | begin |  end  | len | when  | cond
+    //   ============================================================= len=comptime
+    //    1 |  ct   | infer | ct  |  ct   | begin <= len
+    //   -------------------------------------------------
+    //    2 |  ct   |  ct   | ct  |  ct   | begin <= end
+    //      |       |       |     |  ct   | end <= len
+    //   -------------------------------------------------
+    //    3 |       |       |     |  ct   | begin <= len
+    //      |  ct   |  rt   | ct  |  rt   | begin <= end
+    //      |       |       |     |  rt   | end <= len
+    //   -------------------------------------------------
+    //    4 |  rt   | infer | ct  |  rt   | begin <= len
+    //   -------------------------------------------------
+    //    5 |  rt   |  ct   | ct  |  ct   | end <= len
+    //      |       |       |     |  rt   | begin <= end
+    //   -------------------------------------------------
+    //    6 |  rt   |  rt   | ct  |  rt   | begin <= end
+    //      |       |       |     |  rt   | end <= len
+    //   ============================================================= len=runtime
+    //    7 |  ct   | infer | rt  |  rt   | if begin != 0: begin <= len
+    //   -------------------------------------------------
+    //    8 |  ct   |  ct   | rt  |  ct   | begin <= end
+    //      |       |       |     |  rt   | if begin != end: end <= len
+    //   -------------------------------------------------
+    //    9 |  ct   |  rt   | rt  |  rt   | begin <= end
+    //      |       |       |     |  rt   | end <= len
+    //   -------------------------------------------------
+    //   10 |  rt   | infer | rt  |  rt   | begin <= len
+    //   -------------------------------------------------
+    //   11 |  rt   |  ct   | rt  |  rt   | begin <= end
+    //      |       |       |     |  rt   | end <= len
+    //   -------------------------------------------------
+    //   12 |  rt   |  rt   | rt  |  rt   | begin <= end
+    //      |       |       |     |  rt   | end <= len
+    //
+    // comptime checks: #1, #2, #3, #5, #8
+    // runtime checks: #3, #4, #5, #6, #7, #8, #9, #10, #11, #12
+
+    IrInstruction *operand_ptr = instruction->ptr->child;
+    if (type_is_invalid(operand_ptr->value.type))
         return ira->codegen->invalid_instruction;
 
-    ZigType *ptr_ptr_type = ptr_ptr->value.type;
-    assert(ptr_ptr_type->id == ZigTypeIdPointer);
-    ZigType *array_type = ptr_ptr_type->data.pointer.child_type;
-
-    IrInstruction *start = instruction->start->child;
-    if (type_is_invalid(start->value.type))
-        return ira->codegen->invalid_instruction;
+    ZigType *operand_ptr_type = operand_ptr->value.type;
+    assert(operand_ptr_type->id == ZigTypeIdPointer);
+    ZigType *operand_type = operand_ptr_type->data.pointer.child_type;
 
     ZigType *usize = ira->codegen->builtin_types.entry_usize;
-    IrInstruction *casted_start = ir_implicit_cast(ira, start, usize);
-    if (type_is_invalid(casted_start->value.type))
-        return ira->codegen->invalid_instruction;
+
+    IrInstruction *begin;
+    {
+        IrInstruction *child = instruction->start->child;
+        if (type_is_invalid(child->value.type))
+            return ira->codegen->invalid_instruction;
+
+        begin = ir_implicit_cast(ira, child, usize);
+        if (type_is_invalid(begin->value.type))
+            return ira->codegen->invalid_instruction;
+    }
 
     IrInstruction *end;
-    if (instruction->end) {
-        end = instruction->end->child;
-        if (type_is_invalid(end->value.type))
-            return ira->codegen->invalid_instruction;
-        end = ir_implicit_cast(ira, end, usize);
-        if (type_is_invalid(end->value.type))
-            return ira->codegen->invalid_instruction;
-    } else {
-        end = nullptr;
+    {
+        if (instruction->end) {
+            IrInstruction *child = instruction->end->child;
+            if (type_is_invalid(child->value.type))
+                return ira->codegen->invalid_instruction;
+
+            end = ir_implicit_cast(ira, child, usize);
+            if (type_is_invalid(end->value.type))
+                return ira->codegen->invalid_instruction;
+        } else {
+            end = nullptr;
+        }
     }
+
+    uint64_t operand_len_scalar = 0;
+    bool is_ct_operand_len = false;
+    {
+        if (operand_type->id == ZigTypeIdArray) {
+            operand_len_scalar = operand_type->data.array.len;
+            is_ct_operand_len = true;
+        } else if (instr_is_comptime(operand_ptr)) {
+            if (is_slice(operand_type)) {
+                ConstExprValue *slice_ptr = const_ptr_pointee(ira, ira->codegen, &operand_ptr->value,
+                    instruction->base.source_node);
+                if (slice_ptr == nullptr)
+                    return ira->codegen->invalid_instruction;
+
+                ConstExprValue *len_val = &slice_ptr->data.x_struct.fields[slice_len_index];
+                operand_len_scalar = bigint_as_usize(&len_val->data.x_bigint);
+                is_ct_operand_len = true;
+            }
+        }
+    }
+
+    uint64_t begin_scalar = 0;
+    bool is_ct_begin = false;
+    {
+        if (instr_is_comptime(begin)) {
+            begin_scalar = bigint_as_u64(&begin->value.data.x_bigint);
+            is_ct_begin = true;
+        }
+    }
+
+    uint64_t end_scalar = 0;
+    bool is_ct_end = false;
+    {
+        if (end) {
+            if (instr_is_comptime(end)) {
+                end_scalar = bigint_as_u64(&end->value.data.x_bigint);
+                is_ct_end = true;
+            }
+        } else {
+            if (is_ct_operand_len) {
+                end_scalar = operand_len_scalar;
+                is_ct_end = true;
+            }
+        }
+    }
+
+    // comptime safety: check bounds
+    {
+        if (is_ct_operand_len) {
+            if (is_ct_begin) {
+                if (!end) {
+                    // CRSC #1
+                    if (begin_scalar > operand_len_scalar) {
+                        ir_add_error(ira, &instruction->base,
+                            buf_sprintf("slice begin is greater than length (%" ZIG_PRI_u64 ")", operand_len_scalar));
+                        return ira->codegen->invalid_instruction;
+                    }
+                } else if (is_ct_end) {
+                    // CRSC #2
+                    if (begin_scalar > end_scalar) {
+                        ir_add_error(ira, &instruction->base, buf_sprintf("slice begin is greater than slice end"));
+                        return ira->codegen->invalid_instruction;
+                    }
+                    if (end_scalar > operand_len_scalar) {
+                        ir_add_error(ira, &instruction->base,
+                            buf_sprintf("slice end is greater than length (%" ZIG_PRI_u64 ")", operand_len_scalar));
+                        return ira->codegen->invalid_instruction;
+                    }
+                } else if (!is_ct_end) {
+                    // CRSC #3
+                    if (begin_scalar > operand_len_scalar) {
+                        ir_add_error(ira, &instruction->base,
+                            buf_sprintf("slice begin is greater than length (%" ZIG_PRI_u64 ")", operand_len_scalar));
+                        return ira->codegen->invalid_instruction;
+                    }
+                }
+            } else {
+                if (is_ct_end) {
+                    // CRSC #5
+                    if (end_scalar > operand_len_scalar) {
+                        ir_add_error(ira, &instruction->base,
+                            buf_sprintf("slice end is greater than length (%" ZIG_PRI_u64 ")", operand_len_scalar));
+                        return ira->codegen->invalid_instruction;
+                    }
+                }
+            }
+        } else {
+            if (is_ct_begin && is_ct_end) {
+                // CRSC #8
+                if (begin_scalar > end_scalar) {
+                    ir_add_error(ira, &instruction->base, buf_sprintf("slice begin is greater than slice end"));
+                    return ira->codegen->invalid_instruction;
+                }
+            }
+        }
+    }
+
 
     ZigType *return_type;
 
-    if (array_type->id == ZigTypeIdArray) {
-        bool is_comptime_const = ptr_ptr->value.special == ConstValSpecialStatic &&
-            ptr_ptr->value.data.x_ptr.mut == ConstPtrMutComptimeConst;
-        ZigType *slice_ptr_type = get_pointer_to_type_extra(ira->codegen, array_type->data.array.child_type,
-            ptr_ptr_type->data.pointer.is_const || is_comptime_const,
-            ptr_ptr_type->data.pointer.is_volatile,
+    if (operand_type->id == ZigTypeIdArray) {
+        bool is_comptime_const = operand_ptr->value.special == ConstValSpecialStatic &&
+            operand_ptr->value.data.x_ptr.mut == ConstPtrMutComptimeConst;
+        ZigType *slice_ptr_type = get_pointer_to_type_extra(ira->codegen, operand_type->data.array.child_type,
+            operand_ptr_type->data.pointer.is_const || is_comptime_const,
+            operand_ptr_type->data.pointer.is_volatile,
             PtrLenUnknown,
-            ptr_ptr_type->data.pointer.explicit_alignment, 0, 0, false);
+            operand_ptr_type->data.pointer.explicit_alignment, 0, 0, false);
         return_type = get_slice_type(ira->codegen, slice_ptr_type);
-    } else if (array_type->id == ZigTypeIdPointer) {
-        if (array_type->data.pointer.ptr_len == PtrLenSingle) {
-            ZigType *main_type = array_type->data.pointer.child_type;
+    } else if (operand_type->id == ZigTypeIdPointer) {
+        if (operand_type->data.pointer.ptr_len == PtrLenSingle) {
+            ZigType *main_type = operand_type->data.pointer.child_type;
             if (main_type->id == ZigTypeIdArray) {
                 ZigType *slice_ptr_type = get_pointer_to_type_extra(ira->codegen,
                         main_type->data.pointer.child_type,
-                        array_type->data.pointer.is_const, array_type->data.pointer.is_volatile,
+                        operand_type->data.pointer.is_const, operand_type->data.pointer.is_volatile,
                         PtrLenUnknown,
-                        array_type->data.pointer.explicit_alignment, 0, 0, false);
+                        operand_type->data.pointer.explicit_alignment, 0, 0, false);
                 return_type = get_slice_type(ira->codegen, slice_ptr_type);
             } else {
                 ir_add_error(ira, &instruction->base, buf_sprintf("slice of single-item pointer"));
                 return ira->codegen->invalid_instruction;
             }
         } else {
-            if (array_type->data.pointer.ptr_len == PtrLenC) {
-                array_type = adjust_ptr_len(ira->codegen, array_type, PtrLenUnknown);
+            if (operand_type->data.pointer.ptr_len == PtrLenC) {
+                operand_type = adjust_ptr_len(ira->codegen, operand_type, PtrLenUnknown);
             }
-            return_type = get_slice_type(ira->codegen, array_type);
+            return_type = get_slice_type(ira->codegen, operand_type);
             if (!end) {
                 ir_add_error(ira, &instruction->base, buf_sprintf("slice of pointer must include end value"));
                 return ira->codegen->invalid_instruction;
             }
         }
-    } else if (is_slice(array_type)) {
-        ZigType *ptr_type = array_type->data.structure.fields[slice_ptr_index].type_entry;
+    } else if (is_slice(operand_type)) {
+        ZigType *ptr_type = operand_type->data.structure.fields[slice_ptr_index].type_entry;
         return_type = get_slice_type(ira->codegen, ptr_type);
     } else {
         ir_add_error(ira, &instruction->base,
-            buf_sprintf("slice of non-array type '%s'", buf_ptr(&array_type->name)));
+            buf_sprintf("slice of non-array type '%s'", buf_ptr(&operand_type->name)));
         return ira->codegen->invalid_instruction;
     }
 
-    if (instr_is_comptime(ptr_ptr) &&
-        value_is_comptime(&casted_start->value) &&
+    if (instr_is_comptime(operand_ptr) &&
+        value_is_comptime(&begin->value) &&
         (!end || value_is_comptime(&end->value)))
     {
         ConstExprValue *array_val;
@@ -21875,13 +22033,13 @@ static IrInstruction *ir_analyze_instruction_slice(IrAnalyze *ira, IrInstruction
         size_t abs_offset;
         size_t rel_end;
         bool ptr_is_undef = false;
-        if (array_type->id == ZigTypeIdArray ||
-            (array_type->id == ZigTypeIdPointer && array_type->data.pointer.ptr_len == PtrLenSingle))
+        if (operand_type->id == ZigTypeIdArray ||
+            (operand_type->id == ZigTypeIdPointer && operand_type->data.pointer.ptr_len == PtrLenSingle))
         {
-            if (array_type->id == ZigTypeIdPointer) {
-                ZigType *child_array_type = array_type->data.pointer.child_type;
-                assert(child_array_type->id == ZigTypeIdArray);
-                parent_ptr = const_ptr_pointee(ira, ira->codegen, &ptr_ptr->value, instruction->base.source_node);
+            if (operand_type->id == ZigTypeIdPointer) {
+                ZigType *child_operand_type = operand_type->data.pointer.child_type;
+                assert(child_operand_type->id == ZigTypeIdArray);
+                parent_ptr = const_ptr_pointee(ira, ira->codegen, &operand_ptr->value, instruction->base.source_node);
                 if (parent_ptr == nullptr)
                     return ira->codegen->invalid_instruction;
 
@@ -21889,19 +22047,19 @@ static IrInstruction *ir_analyze_instruction_slice(IrAnalyze *ira, IrInstruction
                 if (array_val == nullptr)
                     return ira->codegen->invalid_instruction;
 
-                rel_end = child_array_type->data.array.len;
+                rel_end = child_operand_type->data.array.len;
                 abs_offset = 0;
             } else {
-                array_val = const_ptr_pointee(ira, ira->codegen, &ptr_ptr->value, instruction->base.source_node);
+                array_val = const_ptr_pointee(ira, ira->codegen, &operand_ptr->value, instruction->base.source_node);
                 if (array_val == nullptr)
                     return ira->codegen->invalid_instruction;
-                rel_end = array_type->data.array.len;
+                rel_end = operand_type->data.array.len;
                 parent_ptr = nullptr;
                 abs_offset = 0;
             }
-        } else if (array_type->id == ZigTypeIdPointer) {
-            assert(array_type->data.pointer.ptr_len == PtrLenUnknown);
-            parent_ptr = const_ptr_pointee(ira, ira->codegen, &ptr_ptr->value, instruction->base.source_node);
+        } else if (operand_type->id == ZigTypeIdPointer) {
+            assert(operand_type->data.pointer.ptr_len == PtrLenUnknown);
+            parent_ptr = const_ptr_pointee(ira, ira->codegen, &operand_ptr->value, instruction->base.source_node);
             if (parent_ptr == nullptr)
                 return ira->codegen->invalid_instruction;
 
@@ -21948,8 +22106,8 @@ static IrInstruction *ir_analyze_instruction_slice(IrAnalyze *ira, IrInstruction
                 case ConstPtrSpecialNull:
                     zig_panic("TODO slice of null ptr");
             }
-        } else if (is_slice(array_type)) {
-            ConstExprValue *slice_ptr = const_ptr_pointee(ira, ira->codegen, &ptr_ptr->value, instruction->base.source_node);
+        } else if (is_slice(operand_type)) {
+            ConstExprValue *slice_ptr = const_ptr_pointee(ira, ira->codegen, &operand_ptr->value, instruction->base.source_node);
             if (slice_ptr == nullptr)
                 return ira->codegen->invalid_instruction;
 
@@ -22002,7 +22160,7 @@ static IrInstruction *ir_analyze_instruction_slice(IrAnalyze *ira, IrInstruction
             zig_unreachable();
         }
 
-        uint64_t start_scalar = bigint_as_u64(&casted_start->value.data.x_bigint);
+        uint64_t start_scalar = bigint_as_u64(&begin->value.data.x_bigint);
         if (!ptr_is_undef && start_scalar > rel_end) {
             ir_add_error(ira, &instruction->base, buf_sprintf("out of bounds slice"));
             return ira->codegen->invalid_instruction;
@@ -22039,11 +22197,11 @@ static IrInstruction *ir_analyze_instruction_slice(IrAnalyze *ira, IrInstruction
             size_t index = abs_offset + start_scalar;
             bool is_const = slice_is_const(return_type);
             init_const_ptr_array(ira->codegen, ptr_val, array_val, index, is_const, PtrLenUnknown);
-            if (array_type->id == ZigTypeIdArray) {
-                ptr_val->data.x_ptr.mut = ptr_ptr->value.data.x_ptr.mut;
-            } else if (is_slice(array_type)) {
+            if (operand_type->id == ZigTypeIdArray) {
+                ptr_val->data.x_ptr.mut = operand_ptr->value.data.x_ptr.mut;
+            } else if (is_slice(operand_type)) {
                 ptr_val->data.x_ptr.mut = parent_ptr->data.x_ptr.mut;
-            } else if (array_type->id == ZigTypeIdPointer) {
+            } else if (operand_type->id == ZigTypeIdPointer) {
                 ptr_val->data.x_ptr.mut = parent_ptr->data.x_ptr.mut;
             }
         } else if (ptr_is_undef) {
@@ -22086,13 +22244,113 @@ static IrInstruction *ir_analyze_instruction_slice(IrAnalyze *ira, IrInstruction
         return result;
     }
 
+    // generate runtime safety IR: check bounds
+#if 0
+    // TODO: mike: re-enable cond for runtime safety
+    if (ir_want_runtime_safety(ira->codegen, &instruction->base) && instruction->safety_check_on) {
+#else
+    if (true) {
+#endif
+        if (is_ct_operand_len) {
+            if (is_ct_begin && !is_ct_end) {
+                // CRSC #3
+                // begin <= end
+                // end <= len
+            } else if (!is_ct_begin && !end) {
+                // CRSC #4
+                // begin <= len
+            } else if (!is_ct_begin && is_ct_end) {
+                // CRSC #5
+                // end <= len
+                // begin <= end
+            } else if (!is_ct_begin && !is_ct_end) {
+                // CRSC #6
+                // begin <= end
+                // end <= len
+            }
+        } else {
+            if (is_ct_begin && !end) {
+                if (begin_scalar != 0) {
+                    // CRSC #7
+                    ir_set_cursor_at_end_and_append_block(&ira->new_irb, ira->new_irb.current_basic_block);
+
+                    IrInstruction *op2;
+                    if (is_slice(operand_type)) {
+                        IrInstruction *sfp = ir_build_struct_field_ptr(&ira->new_irb, instruction->base.scope,
+                            instruction->base.source_node, operand_ptr,
+                            &operand_type->data.structure.fields[slice_len_index]);
+                        sfp->value.type = get_pointer_to_type(ira->codegen,
+                            operand_type->data.structure.fields[slice_len_index].type_entry, false);
+                        op2 = ir_get_deref(ira, operand_ptr, sfp, nullptr);
+                    } else {
+                        zig_unreachable();
+                    }
+
+                    IrInstruction *cond = ir_build_bin_op(
+                        &ira->new_irb,
+                        instruction->base.scope,
+                        instruction->base.source_node,
+                        IrBinOpCmpLessOrEq,
+                        begin,
+                        op2,
+                        false
+                    );
+                    cond->value.type = ira->codegen->builtin_types.entry_bool;
+
+                    IrBasicBlock *fail_block = ir_create_basic_block(&ira->new_irb, instruction->base.scope, "BoundsCheckFail");
+                    IrBasicBlock *pass_block = ir_create_basic_block(&ira->new_irb, instruction->base.scope, "BoundsCheckPass");
+
+                    IrInstruction *cond_br = ir_build_cond_br(&ira->new_irb, instruction->base.scope,
+                        instruction->base.source_node, cond, pass_block, fail_block, nullptr);
+
+                    ir_set_cursor_at_end_and_append_block(&ira->new_irb, fail_block);
+                    IrInstruction *panic_message = ir_build_const_str_lit(&ira->new_irb, instruction->base.scope,
+                        instruction->base.source_node, buf_create_from_str("index out of bounds: slice begin is greater than length"));
+
+                    ZigType *u8_ptr_type = get_pointer_to_type_extra(ira->codegen, ira->codegen->builtin_types.entry_u8,
+                            true, false, PtrLenUnknown, 0, 0, 0, false);
+                    ZigType *str_type = get_slice_type(ira->codegen, u8_ptr_type);
+                    IrInstruction *panic_message_casted = ir_implicit_cast(ira, panic_message, str_type);
+                    if (type_is_invalid(panic_message_casted->value.type))
+                        return ir_unreach_error(ira);
+
+                    IrInstruction *panic = ir_build_panic(&ira->new_irb, instruction->base.scope,
+                        instruction->base.source_node, panic_message_casted);
+
+                    ir_set_cursor_at_end(&ira->new_irb, pass_block);
+                }
+            } else if (is_ct_begin && is_ct_end) {
+                if (begin_scalar != end_scalar) {
+                    // CRSC #8
+                    // end <= len
+                }
+            } else if (is_ct_begin && !is_ct_end) {
+                // CRSC #9
+                // begin <= end
+                // end <= len
+            } else if (!is_ct_begin && !end) {
+                // CRSC #10
+                // begin <= len
+            } else if (!is_ct_begin && is_ct_end) {
+                // CRSC #11
+                // begin <= end
+                // end <= len
+            } else if (!is_ct_begin && !is_ct_end) {
+                // CRSC #12
+                // begin <= end
+                // end <= len
+            }
+        }
+    }
+
     IrInstruction *result_loc = ir_resolve_result(ira, &instruction->base, instruction->result_loc,
             return_type, nullptr, true, false, true);
     if (type_is_invalid(result_loc->value.type) || instr_is_unreachable(result_loc)) {
         return result_loc;
     }
+
     return ir_build_slice_gen(ira, &instruction->base, return_type,
-        ptr_ptr, casted_start, end, instruction->safety_check_on, result_loc);
+        operand_ptr, begin, end, instruction->safety_check_on, result_loc);
 }
 
 static IrInstruction *ir_analyze_instruction_member_count(IrAnalyze *ira, IrInstructionMemberCount *instruction) {
@@ -25739,4 +25997,27 @@ Error ir_resolve_lazy(CodeGen *codegen, AstNode *source_node, ConstExprValue *va
         return ErrorSemanticAnalyzeFail;
     }
     return ErrorNone;
+}
+
+bool ir_want_runtime_safety_scope(CodeGen *g, Scope *scope) {
+    // TODO memoize
+    while (scope) {
+        if (scope->id == ScopeIdBlock) {
+            ScopeBlock *block_scope = (ScopeBlock *)scope;
+            if (block_scope->safety_set_node)
+                return !block_scope->safety_off;
+        } else if (scope->id == ScopeIdDecls) {
+            ScopeDecls *decls_scope = (ScopeDecls *)scope;
+            if (decls_scope->safety_set_node)
+                return !decls_scope->safety_off;
+        }
+        scope = scope->parent;
+    }
+
+    return (g->build_mode != BuildModeFastRelease &&
+            g->build_mode != BuildModeSmallRelease);
+}
+
+bool ir_want_runtime_safety(CodeGen *g, IrInstruction *instruction) {
+    return ir_want_runtime_safety_scope(g, instruction->scope);
 }

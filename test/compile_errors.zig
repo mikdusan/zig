@@ -6444,4 +6444,109 @@ pub fn addCases(cases: *tests.CompileErrorContext) void {
         "tmp.zig:5:30: error: expression value is ignored",
         "tmp.zig:9:30: error: expression value is ignored",
     );
+
+    cases.add(
+        "slice bounds check: array[ct,infer] begin greater than length",
+        \\export fn entry() void {
+        \\    var a = [_]u32{ 1, 2, 3, 4, 5 };
+        \\    var slice = a[6..];
+        \\}
+    ,
+        "tmp.zig:3:18: error: slice begin is greater than length (5)",
+    );
+
+    cases.add(
+        "slice bounds check: comptime slice[ct,infer] begin greater than length",
+        \\export fn entry() void {
+        \\    comptime {
+        \\        var a = [_]u32{ 1, 2, 3, 4, 5 };
+        \\        var source = a[0..];
+        \\        var slice = source[6..];
+        \\    }
+        \\}
+    ,
+        "tmp.zig:5:27: error: slice begin is greater than length (5)",
+    );
+
+    cases.add(
+        "slice bounds check: array[ct,ct] begin greater than end",
+        \\export fn entry() void {
+        \\    var a = [_]u32{ 1, 2, 3, 4, 5 };
+        \\    var slice = a[1..0];
+        \\}
+    ,
+        "tmp.zig:3:18: error: slice begin is greater than slice end",
+    );
+
+    cases.add(
+        "slice bounds check: array[ct,ct] end greater than length",
+        \\export fn entry() void {
+        \\    var a = [_]u32{ 1, 2, 3, 4, 5 };
+        \\    var slice = a[0..6];
+        \\}
+    ,
+        "tmp.zig:3:18: error: slice end is greater than length (5)",
+    );
+
+    cases.add(
+        "slice bounds check: array[ct,rt] begin greater than length",
+        \\export fn entry() void {
+        \\    var a = [_]u32{ 1, 2, 3, 4, 5 };
+        \\    var i: usize = 99;
+        \\    var slice = a[6..i];
+        \\}
+    ,
+        "tmp.zig:4:18: error: slice begin is greater than length (5)",
+    );
+
+    cases.add(
+        "slice bounds check: array[rt,ct] end greater than length",
+        \\export fn entry() void {
+        \\    var a = [_]u32{ 1, 2, 3, 4, 5 };
+        \\    var i: usize = 99;
+        \\    var slice = a[i..6];
+        \\}
+    ,
+        "tmp.zig:4:18: error: slice end is greater than length (5)",
+    );
+
+    cases.add(
+        "slice bounds check: slice[ct,ct] begin greater than end",
+        \\export fn entry() void {
+        \\    var a = [_]u32{ 1, 2, 3, 4, 5 };
+        \\    var source = a[0..];
+        \\    var slice = source[1..0];
+        \\}
+    ,
+        "tmp.zig:4:23: error: slice begin is greater than slice end",
+    );
+
+    cases.add(
+        "slice bounds check: pointer[ct,infer] begin greater than end",
+        \\export fn entry(p: [*]u32) void {
+        \\    var slice = p[3..2];
+        \\}
+    ,
+        "tmp.zig:2:18: error: slice begin is greater than slice end",
+    );
+
+    cases.add(
+        "slice bounds check: undefined array[ct,infer] begin greater than length",
+        \\export fn entry() void {
+        \\    var a: [5]u32 = undefined;
+        \\    var slice = a[6..];
+        \\}
+    ,
+        "tmp.zig:3:18: error: slice begin is greater than length (5)",
+    );
+
+    cases.add(
+        "xx slice bounds check: undefined pointer[ct,infer] begin greater than length",
+        \\export fn entry() void {
+        \\    var p: [*]u32 = undefined;
+        \\    var slice = p[3..2];
+        \\}
+    ,
+        "tmp.zig:2:18: error: slice begin is greater than slice end",
+    );
 }
