@@ -264,6 +264,7 @@ static IrInstruction *ir_analyze_inferred_field_ptr(IrAnalyze *ira, Buf *field_n
     IrInstruction *source_instr, IrInstruction *container_ptr, ZigType *container_type);
 static ResultLoc *no_result_loc(void);
 static IrInstruction *ir_analyze_test_non_null(IrAnalyze *ira, IrInstruction *source_inst, IrInstruction *value);
+static IrInstruction *ir_analyze_instruction_base(IrAnalyze *ira, IrInstruction *instruction);
 
 static void destroy_instruction(IrInstruction *inst) {
 #ifdef ZIG_ENABLE_MEM_PROFILE
@@ -8322,7 +8323,13 @@ static IrInstruction *ir_gen_switch_expr(IrBuilder *irb, Scope *scope, AstNode *
         result_instruction = ir_build_phi(irb, scope, node, incoming_blocks.length,
                 incoming_blocks.items, incoming_values.items, peer_parent);
     }
-    return ir_lval_wrap(irb, scope, result_instruction, lval, result_loc);
+    IrInstruction *result = ir_lval_wrap(irb, scope, result_instruction, lval, result_loc);
+
+    // unconditional CheckSwitchProngs (redundant in most cases)
+    (void)ir_build_check_switch_prongs(irb, scope, node, target_value,
+            check_ranges.items, check_ranges.length, else_prong != nullptr, underscore_prong != nullptr);
+
+    return result;
 }
 
 static IrInstruction *ir_gen_comptime(IrBuilder *irb, Scope *parent_scope, AstNode *node, LVal lval) {
@@ -26531,10 +26538,16 @@ static IrInstruction *ir_analyze_instruction_test_comptime(IrAnalyze *ira, IrIns
     return ir_const_bool(ira, &instruction->base, instr_is_comptime(value));
 }
 
+static IrInstruction *ir_instruction_analyze_child(IrAnalyze *ira, IrInstruction *instruction) {
+    if (instruction->child == nullptr)
+        instruction->child = ir_analyze_instruction_base(ira, instruction);
+    return instruction->child;
+}
+
 static IrInstruction *ir_analyze_instruction_check_switch_prongs(IrAnalyze *ira,
         IrInstructionCheckSwitchProngs *instruction)
 {
-    IrInstruction *target_value = instruction->target_value->child;
+    IrInstruction *target_value = ir_instruction_analyze_child(ira, instruction->target_value);
     ZigType *switch_type = target_value->value->type;
     if (type_is_invalid(switch_type))
         return ira->codegen->invalid_instruction;
@@ -26546,14 +26559,14 @@ static IrInstruction *ir_analyze_instruction_check_switch_prongs(IrAnalyze *ira,
         for (size_t range_i = 0; range_i < instruction->range_count; range_i += 1) {
             IrInstructionCheckSwitchProngsRange *range = &instruction->ranges[range_i];
 
-            IrInstruction *start_value_uncasted = range->start->child;
+            IrInstruction *start_value_uncasted = ir_instruction_analyze_child(ira, range->start);
             if (type_is_invalid(start_value_uncasted->value->type))
                 return ira->codegen->invalid_instruction;
             IrInstruction *start_value = ir_implicit_cast(ira, start_value_uncasted, switch_type);
             if (type_is_invalid(start_value->value->type))
                 return ira->codegen->invalid_instruction;
 
-            IrInstruction *end_value_uncasted = range->end->child;
+            IrInstruction *end_value_uncasted = ir_instruction_analyze_child(ira, range->end);
             if (type_is_invalid(end_value_uncasted->value->type))
                 return ira->codegen->invalid_instruction;
             IrInstruction *end_value = ir_implicit_cast(ira, end_value_uncasted, switch_type);
@@ -26637,14 +26650,14 @@ static IrInstruction *ir_analyze_instruction_check_switch_prongs(IrAnalyze *ira,
         for (size_t range_i = 0; range_i < instruction->range_count; range_i += 1) {
             IrInstructionCheckSwitchProngsRange *range = &instruction->ranges[range_i];
 
-            IrInstruction *start_value_uncasted = range->start->child;
+            IrInstruction *start_value_uncasted = ir_instruction_analyze_child(ira, range->start);
             if (type_is_invalid(start_value_uncasted->value->type))
                 return ira->codegen->invalid_instruction;
             IrInstruction *start_value = ir_implicit_cast(ira, start_value_uncasted, switch_type);
             if (type_is_invalid(start_value->value->type))
                 return ira->codegen->invalid_instruction;
 
-            IrInstruction *end_value_uncasted = range->end->child;
+            IrInstruction *end_value_uncasted = ir_instruction_analyze_child(ira, range->end);
             if (type_is_invalid(end_value_uncasted->value->type))
                 return ira->codegen->invalid_instruction;
             IrInstruction *end_value = ir_implicit_cast(ira, end_value_uncasted, switch_type);
@@ -26695,14 +26708,14 @@ static IrInstruction *ir_analyze_instruction_check_switch_prongs(IrAnalyze *ira,
         for (size_t range_i = 0; range_i < instruction->range_count; range_i += 1) {
             IrInstructionCheckSwitchProngsRange *range = &instruction->ranges[range_i];
 
-            IrInstruction *start_value = range->start->child;
+            IrInstruction *start_value = ir_instruction_analyze_child(ira, range->start);
             if (type_is_invalid(start_value->value->type))
                 return ira->codegen->invalid_instruction;
             IrInstruction *casted_start_value = ir_implicit_cast(ira, start_value, switch_type);
             if (type_is_invalid(casted_start_value->value->type))
                 return ira->codegen->invalid_instruction;
 
-            IrInstruction *end_value = range->end->child;
+            IrInstruction *end_value = ir_instruction_analyze_child(ira, range->end);
             if (type_is_invalid(end_value->value->type))
                 return ira->codegen->invalid_instruction;
             IrInstruction *casted_end_value = ir_implicit_cast(ira, end_value, switch_type);
@@ -26749,7 +26762,7 @@ static IrInstruction *ir_analyze_instruction_check_switch_prongs(IrAnalyze *ira,
         for (size_t range_i = 0; range_i < instruction->range_count; range_i += 1) {
             IrInstructionCheckSwitchProngsRange *range = &instruction->ranges[range_i];
 
-            IrInstruction *value = range->start->child;
+            IrInstruction *value = ir_instruction_analyze_child(ira, range->start);
 
             IrInstruction *casted_value = ir_implicit_cast(ira, value, switch_type);
             if (type_is_invalid(casted_value->value->type))
