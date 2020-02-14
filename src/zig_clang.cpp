@@ -2110,6 +2110,34 @@ ZigClangASTUnit *ZigClangLoadFromCommandLine(const char **args_begin, const char
         clang::ASTUnit *unit = ast_unit ? ast_unit : err_unit.release();
         ZigList<Stage2ErrorMsg> errors = {};
 
+#if 1 // TODO: mike
+        // Only one of FailedParseDiagnostics or StoredDiagnostics is non-empty.
+        // We need to break-through the private clang::ASTUnit interface here.
+        // Is another approach viable: implement a DiagnosticConsumer?
+        for (auto it = unit->FailedParseDiagnostics.begin(),
+             it_end = unit->FailedParseDiagnostics.end(); it != it_end; ++it)
+        {
+            switch (it->getLevel()) {
+                case clang::DiagnosticsEngine::Ignored:
+                case clang::DiagnosticsEngine::Remark:
+                case clang::DiagnosticsEngine::Warning:
+                    continue;
+                case clang::DiagnosticsEngine::Note:
+                case clang::DiagnosticsEngine::Error:
+                case clang::DiagnosticsEngine::Fatal:
+                    break;
+            }
+
+            llvm::StringRef msg_str_ref = it->getMessage();
+
+            Stage2ErrorMsg *msg = errors.add_one();
+            memset(msg, 0, sizeof(*msg));
+
+            msg->msg_ptr = (const char *)msg_str_ref.bytes_begin();
+            msg->msg_len = msg_str_ref.size();
+        }
+#endif
+
         for (clang::ASTUnit::stored_diag_iterator it = unit->stored_diag_begin(),
              it_end = unit->stored_diag_end(); it != it_end; ++it)
         {

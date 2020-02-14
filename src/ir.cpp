@@ -24988,6 +24988,10 @@ static IrInstGen *ir_analyze_instruction_c_import(IrAnalyze *ira, IrInstSrcCImpo
                         clang_err->line, clang_err->column, clang_err->offset, clang_err->source,
                         buf_create_from_mem(clang_err->msg_ptr, clang_err->msg_len));
                     err_msg_add_note(parent_err_msg, err_msg);
+                } else {
+                    ErrorMsg *err_msg = err_msg_create_with_offset(
+                        buf_alloc(), 0, 0, 0, "", buf_create_from_mem(clang_err->msg_ptr, clang_err->msg_len));
+                    err_msg_add_note(parent_err_msg, err_msg);
                 }
             }
 

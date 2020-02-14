@@ -61,6 +61,7 @@ option(ZIG_TEST_COVERAGE "Build Zig with test coverage instrumentation" OFF)
 # git log -p -- deps/lld
 option(ZIG_FORCE_EXTERNAL_LLD "If your system has the LLD patches use it instead of the embedded LLD" OFF)
 
+include_directories(${CMAKE_SOURCE_DIR}/hack)
 find_package(llvm)
 find_package(clang)
 
