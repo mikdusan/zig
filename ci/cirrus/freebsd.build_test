@@ -9,7 +9,7 @@ pwd
 printenv | sort
 clang --version
 pkg info
-sudo pkg update -y -f
+sudo pkg update -f
 sudo pkg install -y cmake ninja wget
 cmake --version
 
