@@ -9,8 +9,8 @@ pwd
 printenv | sort
 clang --version
 pkg info
-sudo pkg -y update -f
-sudo pkg -y install cmake ninja wget
+sudo pkg update -y -f
+sudo pkg install -y cmake ninja wget
 cmake --version
 
 OPT="${CIRRUS_WORKING_DIR}/opt"
