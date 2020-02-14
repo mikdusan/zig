@@ -1,14 +1,5 @@
 task:
-    name: test (FreeBSD)
+    name: build+test (FreeBSD)
     freebsd_instance:
         image_family: freebsd-12-1
-    script: |
-        uname -a
-        swapinfo
-        pwd
-        printenv | sort
-        ls -al
-        clang --version
-        pkg info
-        yes | sudo pkg install cmake ninja wget
-        cmake --version
+    script: ./ci/cirrus/freebsd.build_test

@@ -1,0 +1,33 @@
+#!/bin/sh
+
+set -e
+set -x
+
+uname -a
+swapinfo
+pwd
+printenv | sort
+clang --version
+pkg info
+sudo pkg -y update -f
+sudo pkg -y install cmake ninja wget
+cmake --version
+
+OPT="${CIRRUS_WORKING_DIR}/opt"
+ZIG_PREFIX="${OPT}/zig"
+LLVM_BASENAME="llvm+clang-9.0.0-freebsd-x86_64-release"
+LLVM_PREFIX="${OPT}/${LLVM_BASENAME}"
+
+wget -nv "https://ziglang.org/builds/${LLVM_BASENAME}.tar.xz"
+
+mkdir -p "${OPT}"
+tar xf "${LLVM_BASENAME}.tar.xz" -C "${OPT}"
+
+JOBS=`sysctl -n hw.ncpu`
+
+cmake -G Ninja -S . -B _build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX="${ZIG_PREFIX}" -DCMAKE_PREFIX_PATH="${LLVM_PREFIX}"
+ninja -C _build "-j${JOBS}" install
+
+ZIG_EXE="${ZIG_PREFIX}/zig"
+
+"${ZIG_EXE}" build test -Dskip-release -Dskip-non-native
