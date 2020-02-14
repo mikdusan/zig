@@ -6,8 +6,9 @@ task:
         uname -a
         swapinfo
         pwd
-        printenv
-        clang --version
-        git --version
-        pkg info
+        printenv | sort
         ls -al
+        clang --version
+        pkg info
+        yes | sudo pkg install cmake ninja wget
+        cmake --version
