@@ -1,0 +1,7 @@
+task:
+    name: test (FreeBSD)
+    freebsd_instance:
+        image_family: freebsd-12-1
+    script: |
+        uname -a
+        pwd
