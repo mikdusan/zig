@@ -4,4 +4,10 @@ task:
         image_family: freebsd-12-1
     script: |
         uname -a
+        swapinfo
         pwd
+        printenv
+        clang --version
+        git --version
+        pkg info
+        ls -al
