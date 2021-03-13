@@ -352,11 +352,6 @@ fn linkWithLLD(self: *Wasm, comp: *Compilation) !void {
         break :blk full_obj_path;
     } else null;
 
-    const compiler_rt_path: ?[]const u8 = if (self.base.options.include_compiler_rt)
-        comp.compiler_rt_static_lib.?.full_object_path
-    else
-        null;
-
     const target = self.base.options.target;
 
     const id_symlink_basename = "lld.id";
@@ -377,7 +372,6 @@ fn linkWithLLD(self: *Wasm, comp: *Compilation) !void {
             _ = try man.addFile(entry.key.status.success.object_path, null);
         }
         try man.addOptionalFile(module_obj_path);
-        try man.addOptionalFile(compiler_rt_path);
         man.hash.addOptional(self.base.options.stack_size_override);
         man.hash.addListOfBytes(self.base.options.extra_lld_args);
 
@@ -495,10 +489,6 @@ fn linkWithLLD(self: *Wasm, comp: *Compilation) !void {
             !self.base.options.link_libc)
         {
             try argv.append(comp.libc_static_lib.?.full_object_path);
-        }
-
-        if (compiler_rt_path) |p| {
-            try argv.append(p);
         }
 
         if (self.base.options.verbose_link) {

@@ -431,6 +431,7 @@ pub const InitOptions = struct {
     framework_dirs: []const []const u8 = &[0][]const u8{},
     frameworks: []const []const u8 = &[0][]const u8{},
     system_libs: []const []const u8 = &[0][]const u8{},
+    embed_compiler_rt: bool = false,
     link_libc: bool = false,
     link_libcpp: bool = false,
     want_pic: ?bool = null,
@@ -799,7 +800,7 @@ pub fn create(gpa: *Allocator, options: InitOptions) !*Compilation {
             break :b options.want_valgrind orelse (options.optimize_mode == .Debug);
         };
 
-        const include_compiler_rt = options.want_compiler_rt orelse needs_c_symbols;
+        const embed_compiler_rt = options.want_compiler_rt orelse needs_c_symbols;
 
         const single_threaded = options.single_threaded or target_util.isSingleThreaded(options.target);
 
@@ -1023,6 +1024,7 @@ pub fn create(gpa: *Allocator, options: InitOptions) !*Compilation {
             .use_lld = use_lld,
             .use_llvm = use_llvm,
             .system_linker_hack = darwin_options.system_linker_hack,
+            .embed_compiler_rt = embed_compiler_rt,
             .link_libc = link_libc,
             .link_libcpp = link_libcpp,
             .objects = options.link_objects,
@@ -1047,7 +1049,6 @@ pub fn create(gpa: *Allocator, options: InitOptions) !*Compilation {
             .minor_subsystem_version = options.minor_subsystem_version,
             .stack_size_override = options.stack_size_override,
             .image_base_override = options.image_base_override,
-            .include_compiler_rt = include_compiler_rt,
             .linker_script = options.linker_script,
             .version_script = options.version_script,
             .gc_sections = options.linker_gc_sections,
@@ -1209,24 +1210,6 @@ pub fn create(gpa: *Allocator, options: InitOptions) !*Compilation {
         // The `is_stage1` condition is here only because stage2 cannot yet build compiler-rt.
         // Once it is capable this condition should be removed.
         if (build_options.is_stage1) {
-            if (comp.bin_file.options.include_compiler_rt) {
-                if (is_exe_or_dyn_lib or comp.getTarget().isWasm()) {
-                    try comp.work_queue.writeItem(.{ .compiler_rt_lib = {} });
-                } else {
-                    try comp.work_queue.writeItem(.{ .compiler_rt_obj = {} });
-                    if (comp.bin_file.options.object_format != .elf and
-                        comp.bin_file.options.output_mode == .Obj)
-                    {
-                        // For ELF we can rely on using -r to link multiple objects together into one,
-                        // but to truly support `build-obj -fcompiler-rt` will require virtually
-                        // injecting `_ = @import("compiler_rt.zig")` into the root source file of
-                        // the compilation.
-                        fatal("Embedding compiler-rt into {s} objects is not yet implemented.", .{
-                            @tagName(comp.bin_file.options.object_format),
-                        });
-                    }
-                }
-            }
             if (needs_c_symbols) {
                 // MinGW provides no libssp, use our own implementation.
                 if (comp.getTarget().isMinGW()) {
@@ -2949,6 +2932,7 @@ pub fn generateBuiltinZigSource(comp: *Compilation, allocator: *Allocator) ![]u8
     try buffer.writer().print(
         \\pub const object_format = ObjectFormat.{};
         \\pub const mode = Mode.{};
+        \\pub const embed_compiler_rt = {};
         \\pub const link_libc = {};
         \\pub const link_libcpp = {};
         \\pub const have_error_return_tracing = {};
@@ -2961,6 +2945,7 @@ pub fn generateBuiltinZigSource(comp: *Compilation, allocator: *Allocator) ![]u8
     , .{
         std.zig.fmtId(@tagName(comp.bin_file.options.object_format)),
         std.zig.fmtId(@tagName(comp.bin_file.options.optimize_mode)),
+        comp.bin_file.options.embed_compiler_rt,
         link_libc,
         comp.bin_file.options.link_libcpp,
         comp.bin_file.options.error_return_tracing,

@@ -735,11 +735,6 @@ fn linkWithLLD(self: *MachO, comp: *Compilation) !void {
             try argv.append(p);
         }
 
-        // compiler_rt on darwin is missing some stuff, so we still build it and rely on LinkOnce
-        if (is_exe_or_dyn_lib and !self.base.options.skip_linker_dependencies) {
-            try argv.append(comp.compiler_rt_static_lib.?.full_object_path);
-        }
-
         // Shared libraries.
         const system_libs = self.base.options.system_libs.items();
         try argv.ensureCapacity(argv.items.len + system_libs.len);

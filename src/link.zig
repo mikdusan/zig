@@ -46,7 +46,6 @@ pub const Options = struct {
     entry_addr: ?u64 = null,
     stack_size_override: ?u64,
     image_base_override: ?u64,
-    include_compiler_rt: bool,
     /// Set to `true` to omit debug info.
     strip: bool,
     /// If this is true then this link code is responsible for outputting an object
@@ -61,6 +60,7 @@ pub const Options = struct {
     /// Darwin-only. If this is true, `use_llvm` is true, and `is_native_os` is true, this link code will
     /// use system linker `ld` instead of the LLD.
     system_linker_hack: bool,
+    embed_compiler_rt: bool,
     link_libc: bool,
     link_libcpp: bool,
     function_sections: bool,
@@ -511,11 +511,6 @@ pub const File = struct {
             break :blk full_obj_path;
         } else null;
 
-        const compiler_rt_path: ?[]const u8 = if (base.options.include_compiler_rt)
-            comp.compiler_rt_obj.?.full_object_path
-        else
-            null;
-
         // This function follows the same pattern as link.Elf.linkWithLLD so if you want some
         // insight as to what's going on here you can read that function body which is more
         // well-commented.
@@ -538,7 +533,6 @@ pub const File = struct {
                 _ = try man.addFile(entry.key.status.success.object_path, null);
             }
             try man.addOptionalFile(module_obj_path);
-            try man.addOptionalFile(compiler_rt_path);
 
             // We don't actually care whether it's a cache hit or miss; we just need the digest and the lock.
             _ = try man.hit();
@@ -577,9 +571,6 @@ pub const File = struct {
             object_files.appendAssumeCapacity(try arena.dupeZ(u8, entry.key.status.success.object_path));
         }
         if (module_obj_path) |p| {
-            object_files.appendAssumeCapacity(try arena.dupeZ(u8, p));
-        }
-        if (compiler_rt_path) |p| {
             object_files.appendAssumeCapacity(try arena.dupeZ(u8, p));
         }
 

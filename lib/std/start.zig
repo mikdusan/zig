@@ -17,6 +17,10 @@ var argc_argv_ptr: [*]usize = undefined;
 const start_sym_name = if (builtin.arch.isMIPS()) "__start" else "_start";
 
 comptime {
+    if (builtin.embed_compiler_rt) {
+        _ = @import("special/compiler_rt.zig");
+    }
+
     if (builtin.output_mode == .Lib and builtin.link_mode == .Dynamic) {
         if (builtin.os.tag == .windows and !@hasDecl(root, "_DllMainCRTStartup")) {
             @export(_DllMainCRTStartup, .{ .name = "_DllMainCRTStartup" });

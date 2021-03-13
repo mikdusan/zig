@@ -9129,6 +9129,7 @@ Buf *codegen_generate_builtin_source(CodeGen *g) {
     buf_appendf(contents, "pub const os = Target.Os.Tag.defaultVersionRange(.%s);\n", cur_os);
     buf_appendf(contents, "pub const object_format = ObjectFormat.%s;\n", cur_obj_fmt);
     buf_appendf(contents, "pub const mode = %s;\n", build_mode_to_str(g->build_mode));
+    buf_appendf(contents, "pub const embed_compiler_rt = false;\n");
     buf_appendf(contents, "pub const link_libc = %s;\n", bool_to_str(g->link_libc));
     buf_appendf(contents, "pub const link_libcpp = %s;\n", bool_to_str(g->link_libcpp));
     buf_appendf(contents, "pub const have_error_return_tracing = %s;\n", bool_to_str(g->have_err_ret_tracing));
