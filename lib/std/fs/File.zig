@@ -392,10 +392,10 @@ pub const Stat = struct {
     /// Last status/metadata change time in nanoseconds, relative to UTC 1970-01-01.
     ctime: i128,
 
-    pub fn fromSystem(st: posix.Stat) Stat {
-        const atime = st.atime();
-        const mtime = st.mtime();
-        const ctime = st.ctime();
+    pub fn fromSystem(st: posix.stat_t) Stat {
+        const atime = if (@hasField(posix.stat_t, "atimespec")) st.atimespec else st.atim;
+        const mtime = if (@hasField(posix.stat_t, "mtimespec")) st.mtimespec else st.mtim;
+        const ctime = if (@hasField(posix.stat_t, "ctimespec")) st.ctimespec else st.ctim;
         return .{
             .inode = st.ino,
             .size = @bitCast(st.size),
@@ -420,9 +420,9 @@ pub const Stat = struct {
 
                 break :k .unknown;
             },
-            .atime = @as(i128, atime.tv_sec) * std.time.ns_per_s + atime.tv_nsec,
-            .mtime = @as(i128, mtime.tv_sec) * std.time.ns_per_s + mtime.tv_nsec,
-            .ctime = @as(i128, ctime.tv_sec) * std.time.ns_per_s + ctime.tv_nsec,
+            .atime = @as(i128, atime.sec) * std.time.ns_per_s + atime.nsec,
+            .mtime = @as(i128, mtime.sec) * std.time.ns_per_s + mtime.nsec,
+            .ctime = @as(i128, ctime.sec) * std.time.ns_per_s + ctime.nsec,
         };
     }
 
@@ -740,7 +740,7 @@ pub const Metadata = struct {
 };
 
 pub const MetadataUnix = struct {
-    stat: posix.Stat,
+    stat: posix.stat_t,
 
     const Self = @This();
 
@@ -790,14 +790,14 @@ pub const MetadataUnix = struct {
 
     /// Returns the last time the file was accessed in nanoseconds since UTC 1970-01-01
     pub fn accessed(self: Self) i128 {
-        const atime = self.stat.atime();
-        return @as(i128, atime.tv_sec) * std.time.ns_per_s + atime.tv_nsec;
+        const atime = if (@hasField(posix.stat_t, "atimespec")) self.stat.atimespec else self.stat.atim;
+        return @as(i128, atime.sec) * std.time.ns_per_s + atime.nsec;
     }
 
     /// Returns the last time the file was modified in nanoseconds since UTC 1970-01-01
     pub fn modified(self: Self) i128 {
-        const mtime = self.stat.mtime();
-        return @as(i128, mtime.tv_sec) * std.time.ns_per_s + mtime.tv_nsec;
+        const mtime = if (@hasField(posix.stat_t, "mtimespec")) self.stat.mtimespec else self.stat.mtim;
+        return @as(i128, mtime.sec) * std.time.ns_per_s + mtime.nsec;
     }
 
     /// Returns the time the file was created in nanoseconds since UTC 1970-01-01.
@@ -811,13 +811,13 @@ pub const MetadataUnix = struct {
         // On NetBSD and OpenBSD: tv_nsec = 0, tv_sec = 0
         // On MacOS, it is set to ctime -- we cannot detect this!!
         switch (builtin.os.tag) {
-            .freebsd => if (birthtime.tv_sec == -1 and birthtime.tv_nsec == 0) return null,
-            .netbsd, .openbsd => if (birthtime.tv_sec == 0 and birthtime.tv_nsec == 0) return null,
+            .freebsd => if (birthtime.sec == -1 and birthtime.nsec == 0) return null,
+            .netbsd, .openbsd => if (birthtime.sec == 0 and birthtime.nsec == 0) return null,
             .macos => {},
             else => @compileError("Creation time detection not implemented for OS"),
         }
 
-        return @as(i128, birthtime.tv_sec) * std.time.ns_per_s + birthtime.tv_nsec;
+        return @as(i128, birthtime.sec) * std.time.ns_per_s + birthtime.nsec;
     }
 };
 
@@ -858,19 +858,19 @@ pub const MetadataLinux = struct {
 
     /// Returns the last time the file was accessed in nanoseconds since UTC 1970-01-01
     pub fn accessed(self: Self) i128 {
-        return @as(i128, self.statx.atime.tv_sec) * std.time.ns_per_s + self.statx.atime.tv_nsec;
+        return @as(i128, self.statx.atime.sec) * std.time.ns_per_s + self.statx.atime.nsec;
     }
 
     /// Returns the last time the file was modified in nanoseconds since UTC 1970-01-01
     pub fn modified(self: Self) i128 {
-        return @as(i128, self.statx.mtime.tv_sec) * std.time.ns_per_s + self.statx.mtime.tv_nsec;
+        return @as(i128, self.statx.mtime.sec) * std.time.ns_per_s + self.statx.mtime.nsec;
     }
 
     /// Returns the time the file was created in nanoseconds since UTC 1970-01-01.
     /// Returns null if this is not supported by the filesystem, or on kernels before than version 4.11
     pub fn created(self: Self) ?i128 {
         if (self.statx.mask & std.os.linux.STATX_BTIME == 0) return null;
-        return @as(i128, self.statx.btime.tv_sec) * std.time.ns_per_s + self.statx.btime.tv_nsec;
+        return @as(i128, self.statx.btime.sec) * std.time.ns_per_s + self.statx.btime.nsec;
     }
 };
 
@@ -1026,12 +1026,12 @@ pub fn metadata(self: File) MetadataError!Metadata {
 
                         // Hacky conversion from timespec to statx_timestamp
                         stx.atime = std.mem.zeroes(l.statx_timestamp);
-                        stx.atime.tv_sec = st.atim.tv_sec;
-                        stx.atime.tv_nsec = @as(u32, @intCast(st.atim.tv_nsec)); // Guaranteed to succeed (tv_nsec is always below 10^9)
+                        stx.atime.sec = st.atim.sec;
+                        stx.atime.nsec = @as(u32, @intCast(st.atim.nsec)); // Guaranteed to succeed (tv_nsec is always below 10^9)
 
                         stx.mtime = std.mem.zeroes(l.statx_timestamp);
-                        stx.mtime.tv_sec = st.mtim.tv_sec;
-                        stx.mtime.tv_nsec = @as(u32, @intCast(st.mtim.tv_nsec));
+                        stx.mtime.sec = st.mtim.sec;
+                        stx.mtime.nsec = @as(u32, @intCast(st.mtim.nsec));
 
                         stx.mask = l.STATX_BASIC_STATS | l.STATX_MTIME;
                     },
@@ -1070,14 +1070,14 @@ pub fn updateTimes(
         const mtime_ft = windows.nanoSecondsToFileTime(mtime);
         return windows.SetFileTime(self.handle, null, &atime_ft, &mtime_ft);
     }
-    const times = [2]posix.timespec{
-        posix.timespec{
-            .tv_sec = math.cast(isize, @divFloor(atime, std.time.ns_per_s)) orelse maxInt(isize),
-            .tv_nsec = math.cast(isize, @mod(atime, std.time.ns_per_s)) orelse maxInt(isize),
+    const times = [2]posix.timespec_t{
+        posix.timespec_t{
+            .sec = math.cast(isize, @divFloor(atime, std.time.ns_per_s)) orelse maxInt(isize),
+            .nsec = math.cast(isize, @mod(atime, std.time.ns_per_s)) orelse maxInt(isize),
         },
-        posix.timespec{
-            .tv_sec = math.cast(isize, @divFloor(mtime, std.time.ns_per_s)) orelse maxInt(isize),
-            .tv_nsec = math.cast(isize, @mod(mtime, std.time.ns_per_s)) orelse maxInt(isize),
+        posix.timespec_t{
+            .sec = math.cast(isize, @divFloor(mtime, std.time.ns_per_s)) orelse maxInt(isize),
+            .nsec = math.cast(isize, @mod(mtime, std.time.ns_per_s)) orelse maxInt(isize),
         },
     };
     try posix.futimens(self.handle, &times);
@@ -1174,7 +1174,7 @@ pub fn preadAll(self: File, buffer: []u8, offset: u64) PReadError!usize {
 }
 
 /// See https://github.com/ziglang/zig/issues/7699
-pub fn readv(self: File, iovecs: []const posix.iovec) ReadError!usize {
+pub fn readv(self: File, iovecs: []const posix.iovec_t) ReadError!usize {
     if (is_windows) {
         // TODO improve this to use ReadFileScatter
         if (iovecs.len == 0) return @as(usize, 0);
@@ -1198,7 +1198,7 @@ pub fn readv(self: File, iovecs: []const posix.iovec) ReadError!usize {
 ///   when the length is zero.
 ///
 /// Related open issue: https://github.com/ziglang/zig/issues/7699
-pub fn readvAll(self: File, iovecs: []posix.iovec) ReadError!usize {
+pub fn readvAll(self: File, iovecs: []posix.iovec_t) ReadError!usize {
     if (iovecs.len == 0) return 0;
 
     // We use the address of this local variable for all zero-length
@@ -1230,7 +1230,7 @@ pub fn readvAll(self: File, iovecs: []posix.iovec) ReadError!usize {
 /// See https://github.com/ziglang/zig/issues/7699
 /// On Windows, this function currently does alter the file pointer.
 /// https://github.com/ziglang/zig/issues/12783
-pub fn preadv(self: File, iovecs: []const posix.iovec, offset: u64) PReadError!usize {
+pub fn preadv(self: File, iovecs: []const posix.iovec_t, offset: u64) PReadError!usize {
     if (is_windows) {
         // TODO improve this to use ReadFileScatter
         if (iovecs.len == 0) return @as(usize, 0);
@@ -1249,7 +1249,7 @@ pub fn preadv(self: File, iovecs: []const posix.iovec, offset: u64) PReadError!u
 /// See https://github.com/ziglang/zig/issues/7699
 /// On Windows, this function currently does alter the file pointer.
 /// https://github.com/ziglang/zig/issues/12783
-pub fn preadvAll(self: File, iovecs: []posix.iovec, offset: u64) PReadError!usize {
+pub fn preadvAll(self: File, iovecs: []posix.iovec_t, offset: u64) PReadError!usize {
     if (iovecs.len == 0) return 0;
 
     var i: usize = 0;
@@ -1309,7 +1309,7 @@ pub fn pwriteAll(self: File, bytes: []const u8, offset: u64) PWriteError!void {
 
 /// See https://github.com/ziglang/zig/issues/7699
 /// See equivalent function: `std.net.Stream.writev`.
-pub fn writev(self: File, iovecs: []const posix.iovec_const) WriteError!usize {
+pub fn writev(self: File, iovecs: []const posix.iovec_const_t) WriteError!usize {
     if (is_windows) {
         // TODO improve this to use WriteFileScatter
         if (iovecs.len == 0) return @as(usize, 0);
@@ -1329,7 +1329,7 @@ pub fn writev(self: File, iovecs: []const posix.iovec_const) WriteError!usize {
 ///   when the length is zero.
 /// See https://github.com/ziglang/zig/issues/7699
 /// See equivalent function: `std.net.Stream.writevAll`.
-pub fn writevAll(self: File, iovecs: []posix.iovec_const) WriteError!void {
+pub fn writevAll(self: File, iovecs: []posix.iovec_const_t) WriteError!void {
     if (iovecs.len == 0) return;
 
     // We use the address of this local variable for all zero-length
@@ -1356,7 +1356,7 @@ pub fn writevAll(self: File, iovecs: []posix.iovec_const) WriteError!void {
 /// See https://github.com/ziglang/zig/issues/7699
 /// On Windows, this function currently does alter the file pointer.
 /// https://github.com/ziglang/zig/issues/12783
-pub fn pwritev(self: File, iovecs: []posix.iovec_const, offset: u64) PWriteError!usize {
+pub fn pwritev(self: File, iovecs: []posix.iovec_const_t, offset: u64) PWriteError!usize {
     if (is_windows) {
         // TODO improve this to use WriteFileScatter
         if (iovecs.len == 0) return @as(usize, 0);
@@ -1372,7 +1372,7 @@ pub fn pwritev(self: File, iovecs: []posix.iovec_const, offset: u64) PWriteError
 /// See https://github.com/ziglang/zig/issues/7699
 /// On Windows, this function currently does alter the file pointer.
 /// https://github.com/ziglang/zig/issues/12783
-pub fn pwritevAll(self: File, iovecs: []posix.iovec_const, offset: u64) PWriteError!void {
+pub fn pwritevAll(self: File, iovecs: []posix.iovec_const_t, offset: u64) PWriteError!void {
     if (iovecs.len == 0) return;
 
     var i: usize = 0;
@@ -1424,7 +1424,7 @@ pub const WriteFileOptions = struct {
     /// If the size of the source file is known, passing the size here will save one syscall.
     in_len: ?u64 = null,
 
-    headers_and_trailers: []posix.iovec_const = &[0]posix.iovec_const{},
+    headers_and_trailers: []posix.iovec_const_t = &[0]posix.iovec_const_t{},
 
     /// The trailer count is inferred from `headers_and_trailers.len - header_count`
     header_count: usize = 0,
@@ -1484,7 +1484,7 @@ fn writeFileAllSendfile(self: File, in_file: File, args: WriteFileOptions) posix
     };
     const headers = args.headers_and_trailers[0..args.header_count];
     const trailers = args.headers_and_trailers[args.header_count..];
-    const zero_iovec = &[0]posix.iovec_const{};
+    const zero_iovec = &[0]posix.iovec_const_t{};
     // When reading the whole file, we cannot put the trailers in the sendfile() syscall,
     // because we have no way to determine whether a partial write is past the end of the file or not.
     const trls = if (count == 0) zero_iovec else trailers;

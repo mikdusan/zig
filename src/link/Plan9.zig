@@ -717,7 +717,7 @@ pub fn flushModule(self: *Plan9, arena: Allocator, prog_node: std.Progress.Node)
     defer gpa.free(got_table);
 
     // + 4 for header, got, symbols, linecountinfo
-    var iovecs = try gpa.alloc(std.posix.iovec_const, self.atomCount() + 4 - self.externCount());
+    var iovecs = try gpa.alloc(std.posix.iovec_const_t, self.atomCount() + 4 - self.externCount());
     defer gpa.free(iovecs);
 
     const file = self.base.file.?;

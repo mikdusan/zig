@@ -297,24 +297,26 @@ const LinuxImpl = struct {
 
 // https://www.freebsd.org/cgi/man.cgi?query=_umtx_op&sektion=2&n=1
 const FreebsdImpl = struct {
+    const system = if (builtin.link_libc) std.c else std.sys;
+
     fn wait(ptr: *const atomic.Value(u32), expect: u32, timeout: ?u64) error{Timeout}!void {
         var tm_size: usize = 0;
-        var tm: c._umtx_time = undefined;
-        var tm_ptr: ?*const c._umtx_time = null;
+        var tm: system.umtx_time_t = undefined;
+        var tm_ptr: ?*const system.umtx_time_t = null;
 
         if (timeout) |timeout_ns| {
             tm_ptr = &tm;
             tm_size = @sizeOf(@TypeOf(tm));
 
-            tm._flags = 0; // use relative time not UMTX_ABSTIME
-            tm._clockid = c.CLOCK.MONOTONIC;
-            tm._timeout.tv_sec = @as(@TypeOf(tm._timeout.tv_sec), @intCast(timeout_ns / std.time.ns_per_s));
-            tm._timeout.tv_nsec = @as(@TypeOf(tm._timeout.tv_nsec), @intCast(timeout_ns % std.time.ns_per_s));
+            tm.flags = 0; // use relative time not UMTX_ABSTIME
+            tm.clockid = .MONOTONIC;
+            tm.timeout.sec = @as(@TypeOf(tm.timeout.sec), @intCast(timeout_ns / std.time.ns_per_s));
+            tm.timeout.nsec = @as(@TypeOf(tm.timeout.nsec), @intCast(timeout_ns % std.time.ns_per_s));
         }
 
-        const rc = c._umtx_op(
+        const rc = system.umtx_op(
             @intFromPtr(&ptr.raw),
-            @intFromEnum(c.UMTX_OP.WAIT_UINT_PRIVATE),
+            .WAIT_UINT_PRIVATE,
             @as(c_ulong, expect),
             tm_size,
             @intFromPtr(tm_ptr),
@@ -334,9 +336,9 @@ const FreebsdImpl = struct {
     }
 
     fn wake(ptr: *const atomic.Value(u32), max_waiters: u32) void {
-        const rc = c._umtx_op(
+        const rc = system.umtx_op(
             @intFromPtr(&ptr.raw),
-            @intFromEnum(c.UMTX_OP.WAKE_PRIVATE),
+            .WAKE_PRIVATE,
             @as(c_ulong, max_waiters),
             0, // there is no timeout struct
             0, // there is no timeout struct pointer

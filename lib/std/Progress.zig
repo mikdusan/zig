@@ -390,9 +390,9 @@ pub fn start(options: Options) Node {
             }
 
             if (have_sigwinch) {
-                var act: posix.Sigaction = .{
-                    .handler = .{ .sigaction = handleSigWinch },
-                    .mask = posix.empty_sigset,
+                var act: posix.sigaction_t = .{
+                    .handler = .{ .action = handleSigWinch },
+                    .mask = posix.sigset_t.EMPTY,
                     .flags = (posix.SA.SIGINFO | posix.SA.RESTART),
                 };
                 posix.sigaction(posix.SIG.WINCH, &act, null) catch |err| {
@@ -1252,7 +1252,7 @@ fn writeIpc(fd: posix.fd_t, serialized: Serialized) error{BrokenPipe}!void {
     const storage = std.mem.sliceAsBytes(serialized.storage);
     const parents = std.mem.sliceAsBytes(serialized.parents);
 
-    var vecs: [3]posix.iovec_const = .{
+    var vecs: [3]posix.iovec_const_t = .{
         .{ .base = header.ptr, .len = header.len },
         .{ .base = storage.ptr, .len = storage.len },
         .{ .base = parents.ptr, .len = parents.len },
@@ -1297,7 +1297,7 @@ fn writeIpc(fd: posix.fd_t, serialized: Serialized) error{BrokenPipe}!void {
     }
 }
 
-fn writevNonblock(fd: posix.fd_t, iov: []posix.iovec_const) posix.WriteError!usize {
+fn writevNonblock(fd: posix.fd_t, iov: []posix.iovec_const_t) posix.WriteError!usize {
     var iov_index: usize = 0;
     var written: usize = 0;
     var total_written: usize = 0;
@@ -1335,17 +1335,11 @@ fn maybeUpdateSize(resize_flag: bool) void {
             global_progress.cols = 80;
         }
     } else {
-        var winsize: posix.winsize = .{
-            .ws_row = 0,
-            .ws_col = 0,
-            .ws_xpixel = 0,
-            .ws_ypixel = 0,
-        };
-
+        var winsize: posix.winsize = .{};
         const err = posix.system.ioctl(fd, posix.T.IOCGWINSZ, @intFromPtr(&winsize));
         if (posix.errno(err) == .SUCCESS) {
-            global_progress.rows = winsize.ws_row;
-            global_progress.cols = winsize.ws_col;
+            global_progress.rows = winsize.row;
+            global_progress.cols = winsize.col;
         } else {
             std.log.debug("failed to determine terminal size; using conservative guess 80x25", .{});
             global_progress.rows = 25;
@@ -1354,7 +1348,7 @@ fn maybeUpdateSize(resize_flag: bool) void {
     }
 }
 
-fn handleSigWinch(sig: i32, info: *const posix.siginfo_t, ctx_ptr: ?*anyopaque) callconv(.C) void {
+fn handleSigWinch(sig: posix.SIG, info: *const posix.siginfo_t, ctx_ptr: ?*anyopaque) callconv(.C) void {
     _ = info;
     _ = ctx_ptr;
     assert(sig == posix.SIG.WINCH);

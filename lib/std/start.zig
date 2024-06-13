@@ -65,6 +65,8 @@ comptime {
                 } else if (@typeInfo(@TypeOf(root.main)).Fn.calling_convention != .C) {
                     @export(main, .{ .name = "main" });
                 }
+            } else if (native_os == .freebsd) {
+                if (!@hasDecl(root, "_start")) @export(_start_freebsd, .{ .name = "_start" });
             } else if (native_os == .windows) {
                 if (!@hasDecl(root, "WinMain") and !@hasDecl(root, "WinMainCRTStartup") and
                     !@hasDecl(root, "wWinMain") and !@hasDecl(root, "wWinMainCRTStartup"))
@@ -352,6 +354,20 @@ fn _start() callconv(.Naked) noreturn {
     );
 }
 
+fn _start_freebsd() callconv(.Naked) noreturn {
+    asm volatile (switch (native_arch) {
+            .x86_64 =>
+            \\ pushq %%rbp
+            \\ movq %%rdi, %[argc_argv_ptr]
+            \\ callq %[posixCallMainAndExit:P]
+            ,
+            else => @compileError("unsupported arch"),
+        }
+        : [argc_argv_ptr] "=m" (argc_argv_ptr),
+        : [posixCallMainAndExit] "X" (&posixCallMainAndExit),
+    );
+}
+
 fn WinStartup() callconv(std.os.windows.WINAPI) noreturn {
     @setAlignStack(16);
     if (!builtin.single_threaded and !builtin.link_libc) {
@@ -384,55 +400,62 @@ fn posixCallMainAndExit() callconv(.C) noreturn {
     while (envp_optional[envp_count]) |_| : (envp_count += 1) {}
     const envp = @as([*][*:0]u8, @ptrCast(envp_optional))[0..envp_count];
 
-    if (native_os == .linux) {
-        // Find the beginning of the auxiliary vector
-        const auxv: [*]elf.Auxv = @ptrCast(@alignCast(envp.ptr + envp_count + 1));
-        std.os.linux.elf_aux_maybe = auxv;
+    switch (native_os) {
+        .freebsd => {
+            std.os.freebsd.sys._elf_aux_vector = @ptrCast(@alignCast(envp.ptr + envp_count + 1));
+            std.os.freebsd.sys._progname = if (argc == 0) null else argv[0];
+        },
+        .linux => {
+            // Find the beginning of the auxiliary vector
+            const auxv: [*]elf.Auxv = @ptrCast(@alignCast(envp.ptr + envp_count + 1));
+            std.os.linux.elf_aux_maybe = auxv;
 
-        var at_hwcap: usize = 0;
-        const phdrs = init: {
-            var i: usize = 0;
-            var at_phdr: usize = 0;
-            var at_phnum: usize = 0;
-            while (auxv[i].a_type != elf.AT_NULL) : (i += 1) {
-                switch (auxv[i].a_type) {
-                    elf.AT_PHNUM => at_phnum = auxv[i].a_un.a_val,
-                    elf.AT_PHDR => at_phdr = auxv[i].a_un.a_val,
-                    elf.AT_HWCAP => at_hwcap = auxv[i].a_un.a_val,
-                    else => continue,
+            var at_hwcap: usize = 0;
+            const phdrs = init: {
+                var i: usize = 0;
+                var at_phdr: usize = 0;
+                var at_phnum: usize = 0;
+                while (auxv[i].a_type != elf.AT_NULL) : (i += 1) {
+                    switch (auxv[i].a_type) {
+                        elf.AT_PHNUM => at_phnum = auxv[i].a_un.a_val,
+                        elf.AT_PHDR => at_phdr = auxv[i].a_un.a_val,
+                        elf.AT_HWCAP => at_hwcap = auxv[i].a_un.a_val,
+                        else => continue,
+                    }
                 }
-            }
-            break :init @as([*]elf.Phdr, @ptrFromInt(at_phdr))[0..at_phnum];
-        };
+                break :init @as([*]elf.Phdr, @ptrFromInt(at_phdr))[0..at_phnum];
+            };
 
-        // Apply the initial relocations as early as possible in the startup
-        // process.
-        if (builtin.position_independent_executable) {
-            std.os.linux.pie.relocate(phdrs);
-        }
-
-        if (!builtin.single_threaded) {
-            // ARMv6 targets (and earlier) have no support for TLS in hardware.
-            // FIXME: Elide the check for targets >= ARMv7 when the target feature API
-            // becomes less verbose (and more usable).
-            if (comptime native_arch.isARM()) {
-                if (at_hwcap & std.os.linux.HWCAP.TLS == 0) {
-                    // FIXME: Make __aeabi_read_tp call the kernel helper kuser_get_tls
-                    // For the time being use a simple abort instead of a @panic call to
-                    // keep the binary bloat under control.
-                    std.posix.abort();
-                }
+            // Apply the initial relocations as early as possible in the startup
+            // process.
+            if (builtin.position_independent_executable) {
+                std.os.linux.pie.relocate(phdrs);
             }
 
-            // Initialize the TLS area.
-            std.os.linux.tls.initStaticTLS(phdrs);
-        }
+            if (!builtin.single_threaded) {
+                // ARMv6 targets (and earlier) have no support for TLS in hardware.
+                // FIXME: Elide the check for targets >= ARMv7 when the target feature API
+                // becomes less verbose (and more usable).
+                if (comptime native_arch.isARM()) {
+                    if (at_hwcap & std.os.linux.HWCAP.TLS == 0) {
+                        // FIXME: Make __aeabi_read_tp call the kernel helper kuser_get_tls
+                        // For the time being use a simple abort instead of a @panic call to
+                        // keep the binary bloat under control.
+                        std.posix.abort();
+                    }
+                }
 
-        // The way Linux executables represent stack size is via the PT_GNU_STACK
-        // program header. However the kernel does not recognize it; it always gives 8 MiB.
-        // Here we look for the stack size in our program headers and use setrlimit
-        // to ask for more stack space.
-        expandStackSize(phdrs);
+                // Initialize the TLS area.
+                std.os.linux.tls.initStaticTLS(phdrs);
+            }
+
+            // The way Linux executables represent stack size is via the PT_GNU_STACK
+            // program header. However the kernel does not recognize it; it always gives 8 MiB.
+            // Here we look for the stack size in our program headers and use setrlimit
+            // to ask for more stack space.
+            expandStackSize(phdrs);
+        },
+        else => {},
     }
 
     std.posix.exit(callMainWithArgs(argc, argv, envp));
@@ -599,16 +622,16 @@ fn maybeIgnoreSigpipe() void {
 
     if (have_sigpipe_support and !std.options.keep_sigpipe) {
         const posix = std.posix;
-        const act: posix.Sigaction = .{
+        const act: posix.sigaction_t = .{
             // Set handler to a noop function instead of `SIG.IGN` to prevent
             // leaking signal disposition to a child process.
             .handler = .{ .handler = noopSigHandler },
-            .mask = posix.empty_sigset,
+            .mask = posix.sigset_t.EMPTY,
             .flags = 0,
         };
-        posix.sigaction(posix.SIG.PIPE, &act, null) catch |err|
+        posix.sigaction(.PIPE, &act, null) catch |err|
             std.debug.panic("failed to set noop SIGPIPE handler: {s}", .{@errorName(err)});
     }
 }
 
-fn noopSigHandler(_: i32) callconv(.C) void {}
+fn noopSigHandler(_: std.posix.SIG) callconv(.C) void {}

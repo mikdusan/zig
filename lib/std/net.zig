@@ -1821,7 +1821,7 @@ pub const Stream = struct {
         return posix.read(self.handle, buffer);
     }
 
-    pub fn readv(s: Stream, iovecs: []const posix.iovec) ReadError!usize {
+    pub fn readv(s: Stream, iovecs: []const posix.iovec_t) ReadError!usize {
         if (native_os == .windows) {
             // TODO improve this to use ReadFileScatter
             if (iovecs.len == 0) return @as(usize, 0);
@@ -1875,7 +1875,7 @@ pub const Stream = struct {
 
     /// See https://github.com/ziglang/zig/issues/7699
     /// See equivalent function: `std.fs.File.writev`.
-    pub fn writev(self: Stream, iovecs: []const posix.iovec_const) WriteError!usize {
+    pub fn writev(self: Stream, iovecs: []const posix.iovec_const_t) WriteError!usize {
         return posix.writev(self.handle, iovecs);
     }
 
@@ -1883,7 +1883,7 @@ pub const Stream = struct {
     /// order to handle partial writes from the underlying OS layer.
     /// See https://github.com/ziglang/zig/issues/7699
     /// See equivalent function: `std.fs.File.writevAll`.
-    pub fn writevAll(self: Stream, iovecs: []posix.iovec_const) WriteError!void {
+    pub fn writevAll(self: Stream, iovecs: []posix.iovec_const_t) WriteError!void {
         if (iovecs.len == 0) return;
 
         var i: usize = 0;

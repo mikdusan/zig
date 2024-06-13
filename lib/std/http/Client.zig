@@ -220,7 +220,7 @@ pub const Connection = struct {
 
     pub const Protocol = enum { plain, tls };
 
-    pub fn readvDirectTls(conn: *Connection, buffers: []std.posix.iovec) ReadError!usize {
+    pub fn readvDirectTls(conn: *Connection, buffers: []std.posix.iovec_t) ReadError!usize {
         return conn.tls_client.readv(conn.stream, buffers) catch |err| {
             // https://github.com/ziglang/zig/issues/2473
             if (mem.startsWith(u8, @errorName(err), "TlsAlert")) return error.TlsAlert;
@@ -234,7 +234,7 @@ pub const Connection = struct {
         };
     }
 
-    pub fn readvDirect(conn: *Connection, buffers: []std.posix.iovec) ReadError!usize {
+    pub fn readvDirect(conn: *Connection, buffers: []std.posix.iovec_t) ReadError!usize {
         if (conn.protocol == .tls) {
             if (disable_tls) unreachable;
 
@@ -252,7 +252,7 @@ pub const Connection = struct {
     pub fn fill(conn: *Connection) ReadError!void {
         if (conn.read_end != conn.read_start) return;
 
-        var iovecs = [1]std.posix.iovec{
+        var iovecs = [1]std.posix.iovec_t{
             .{ .base = &conn.read_buf, .len = conn.read_buf.len },
         };
         const nread = try conn.readvDirect(&iovecs);
@@ -288,7 +288,7 @@ pub const Connection = struct {
             return available_read;
         }
 
-        var iovecs = [2]std.posix.iovec{
+        var iovecs = [2]std.posix.iovec_t{
             .{ .base = buffer.ptr, .len = buffer.len },
             .{ .base = &conn.read_buf, .len = conn.read_buf.len },
         };

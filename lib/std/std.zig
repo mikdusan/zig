@@ -56,7 +56,6 @@ pub const atomic = @import("atomic.zig");
 pub const base64 = @import("base64.zig");
 pub const bit_set = @import("bit_set.zig");
 pub const builtin = @import("builtin.zig");
-pub const c = @import("c.zig");
 pub const coff = @import("coff.zig");
 pub const compress = @import("compress.zig");
 pub const static_string_map = @import("static_string_map.zig");
@@ -105,6 +104,21 @@ pub const zip = @import("zip.zig");
 pub const start = @import("start.zig");
 
 const root = @import("root");
+const native_os = @import("builtin").os.tag;
+
+pub const c = switch (native_os) {
+    .freebsd => os.freebsd.c,
+    else => missing_feature,
+};
+
+pub const sys = switch (native_os) {
+    .freebsd => os.freebsd.sys,
+    else => missing_feature,
+};
+
+const feature = @import("feature.zig");
+pub const Feature = feature.Feature;
+pub const missing_feature = feature.missing_feature;
 
 /// Stdlib-wide options that can be overridden by the root file.
 pub const options: Options = if (@hasDecl(root, "std_options")) root.std_options else .{};

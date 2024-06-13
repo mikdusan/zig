@@ -1660,7 +1660,7 @@ fn mapWholeFile(file: File) ![]align(mem.page_size) const u8 {
         const mapped_mem = try posix.mmap(
             null,
             file_len,
-            posix.PROT.READ,
+            .{ .READ = true },
             .{ .TYPE = .SHARED },
             file.handle,
             0,
@@ -2004,7 +2004,7 @@ pub const DebugInfo = struct {
         const CtxTy = @TypeOf(ctx);
 
         if (posix.dl_iterate_phdr(&ctx, error{Found}, struct {
-            fn callback(info: *posix.dl_phdr_info, size: usize, context: *CtxTy) !void {
+            fn callback(info: *posix.dl_phdr_info_t, size: usize, context: *CtxTy) !void {
                 _ = size;
                 if (context.address < info.dlpi_addr) return;
                 const phdrs = info.dlpi_phdr[0..info.dlpi_phnum];
@@ -2043,7 +2043,7 @@ pub const DebugInfo = struct {
         const CtxTy = @TypeOf(ctx);
 
         if (posix.dl_iterate_phdr(&ctx, error{Found}, struct {
-            fn callback(info: *posix.dl_phdr_info, size: usize, context: *CtxTy) !void {
+            fn callback(info: *posix.dl_phdr_info_t, size: usize, context: *CtxTy) !void {
                 _ = size;
                 // The base address is too high
                 if (context.address < info.dlpi_addr)
@@ -2535,7 +2535,7 @@ pub fn maybeEnableSegfaultHandler() void {
 
 var windows_segfault_handle: ?windows.HANDLE = null;
 
-pub fn updateSegfaultHandler(act: ?*const posix.Sigaction) error{OperationNotSupported}!void {
+pub fn updateSegfaultHandler(act: ?*const posix.sigaction_t) error{OperationNotSupported}!void {
     try posix.sigaction(posix.SIG.SEGV, act, null);
     try posix.sigaction(posix.SIG.ILL, act, null);
     try posix.sigaction(posix.SIG.BUS, act, null);
@@ -2551,9 +2551,9 @@ pub fn attachSegfaultHandler() void {
         windows_segfault_handle = windows.kernel32.AddVectoredExceptionHandler(0, handleSegfaultWindows);
         return;
     }
-    var act = posix.Sigaction{
-        .handler = .{ .sigaction = handleSegfaultPosix },
-        .mask = posix.empty_sigset,
+    var act = posix.sigaction_t{
+        .handler = .{ .action = handleSegfaultPosix },
+        .mask = posix.sigset_t.EMPTY,
         .flags = (posix.SA.SIGINFO | posix.SA.RESTART | posix.SA.RESETHAND),
     };
 
@@ -2570,16 +2570,16 @@ fn resetSegfaultHandler() void {
         }
         return;
     }
-    var act = posix.Sigaction{
+    var act = posix.sigaction_t{
         .handler = .{ .handler = posix.SIG.DFL },
-        .mask = posix.empty_sigset,
+        .mask = posix.sigset_t.EMPTY,
         .flags = 0,
     };
     // To avoid a double-panic, do nothing if an error happens here.
     updateSegfaultHandler(&act) catch {};
 }
 
-fn handleSegfaultPosix(sig: i32, info: *const posix.siginfo_t, ctx_ptr: ?*anyopaque) callconv(.C) noreturn {
+fn handleSegfaultPosix(sig: posix.SIG, info: *const posix.siginfo_t, ctx_ptr: ?*anyopaque) callconv(.C) noreturn {
     // Reset to the default handler so that if a segfault happens in this handler it will crash
     // the process. Also when this handler returns, the original instruction will be repeated
     // and the resulting segfault will crash the process rather than continually dump stack traces.
@@ -2621,10 +2621,10 @@ fn handleSegfaultPosix(sig: i32, info: *const posix.siginfo_t, ctx_ptr: ?*anyopa
     posix.abort();
 }
 
-fn dumpSegfaultInfoPosix(sig: i32, code: i32, addr: usize, ctx_ptr: ?*const anyopaque) void {
+fn dumpSegfaultInfoPosix(sig: posix.SIG, code: i32, addr: usize, ctx_ptr: ?*const anyopaque) void {
     const stderr = io.getStdErr().writer();
     _ = switch (sig) {
-        posix.SIG.SEGV => if (native_arch == .x86_64 and native_os == .linux and code == 128) // SI_KERNEL
+        .SEGV => if (native_arch == .x86_64 and native_os == .linux and code == 128) // SI_KERNEL
             // x86_64 doesn't have a full 64-bit virtual address space.
             // Addresses outside of that address space are non-canonical
             // and the CPU won't provide the faulting address to us.

@@ -613,7 +613,7 @@ pub fn selfExePath(out_buffer: []u8) SelfExePathError![]u8 {
             else => |e| return e,
         },
         .freebsd, .dragonfly => {
-            var mib = [4]c_int{ posix.CTL.KERN, posix.KERN.PROC, posix.KERN.PROC_PATHNAME, -1 };
+            var mib = [4]c_int{ @intFromEnum(posix.CTL.kern), @intFromEnum(posix.CTL.KERN.proc), @intFromEnum(posix.CTL.KERN.PROC.pathname), -1 };
             var out_len: usize = out_buffer.len;
             try posix.sysctl(&mib, out_buffer.ptr, &out_len, null, 0);
             // TODO could this slice from 0 to out_len instead?

@@ -1287,7 +1287,7 @@ test "writev, readv" {
 
     var buf1: [line1.len]u8 = undefined;
     var buf2: [line2.len]u8 = undefined;
-    var write_vecs = [_]posix.iovec_const{
+    var write_vecs = [_]posix.iovec_const_t{
         .{
             .base = line1,
             .len = line1.len,
@@ -1297,7 +1297,7 @@ test "writev, readv" {
             .len = line2.len,
         },
     };
-    var read_vecs = [_]posix.iovec{
+    var read_vecs = [_]posix.iovec_t{
         .{
             .base = &buf2,
             .len = buf2.len,
@@ -1329,7 +1329,7 @@ test "pwritev, preadv" {
 
     var buf1: [line1.len]u8 = undefined;
     var buf2: [line2.len]u8 = undefined;
-    var write_vecs = [_]posix.iovec_const{
+    var write_vecs = [_]posix.iovec_const_t{
         .{
             .base = line1,
             .len = line1.len,
@@ -1339,7 +1339,7 @@ test "pwritev, preadv" {
             .len = line2.len,
         },
     };
-    var read_vecs = [_]posix.iovec{
+    var read_vecs = [_]posix.iovec_t{
         .{
             .base = &buf2,
             .len = buf2.len,
@@ -1389,7 +1389,7 @@ test "sendfile" {
 
     const line1 = "line1\n";
     const line2 = "second line\n";
-    var vecs = [_]posix.iovec_const{
+    var vecs = [_]posix.iovec_const_t{
         .{
             .base = line1,
             .len = line1.len,
@@ -1412,7 +1412,7 @@ test "sendfile" {
     const header2 = "second header\n";
     const trailer1 = "trailer1\n";
     const trailer2 = "second trailer\n";
-    var hdtr = [_]posix.iovec_const{
+    var hdtr = [_]posix.iovec_const_t{
         .{
             .base = header1,
             .len = header1.len,

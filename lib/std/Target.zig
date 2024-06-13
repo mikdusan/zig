@@ -530,7 +530,6 @@ pub const Os = struct {
     /// since this is the stable syscall interface.
     pub fn requiresLibC(os: Os) bool {
         return switch (os.tag) {
-            .freebsd,
             .netbsd,
             .macos,
             .ios,
@@ -545,6 +544,7 @@ pub const Os = struct {
             .serenity,
             => true,
 
+            .freebsd,
             .linux,
             .windows,
             .freestanding,

@@ -23,16 +23,16 @@ pub const WaitGroup = @import("Thread/WaitGroup.zig");
 pub const use_pthreads = native_os != .windows and native_os != .wasi and builtin.link_libc;
 
 const Thread = @This();
-const Impl = if (native_os == .windows)
-    WindowsThreadImpl
-else if (use_pthreads)
-    PosixThreadImpl
-else if (native_os == .linux)
-    LinuxThreadImpl
-else if (native_os == .wasi)
-    WasiThreadImpl
-else
-    UnsupportedImpl;
+const Impl = switch (native_os) {
+    .freebsd => if (builtin.link_libc) PosixThreadImpl else FreebsdThreadImpl,
+    .linux => LinuxThreadImpl,
+    .wasi => WasiThreadImpl,
+    .windows => WindowsThreadImpl,
+    else => if (use_pthreads)
+        PosixThreadImpl
+    else
+        UnsupportedImpl,
+};
 
 impl: Impl,
 
@@ -258,10 +258,10 @@ pub fn getName(self: Thread, buffer_ptr: *[max_name_len:0]u8) GetNameError!?[]co
 
 /// Represents an ID per thread guaranteed to be unique only within a process.
 pub const Id = switch (native_os) {
+    .freebsd => if (builtin.link_libc) u32 else Impl.Id,
     .linux,
     .dragonfly,
     .netbsd,
-    .freebsd,
     .openbsd,
     .haiku,
     .wasi,
@@ -1036,6 +1036,34 @@ const WasiThreadImpl = struct {
             \\ local.set %[stack_ptr]
             : [stack_ptr] "=r" (-> [*]u8),
         );
+    }
+};
+
+const FreebsdThreadImpl = struct {
+    pub const ThreadHandle = c_long;
+    pub const Id = c_long;
+
+    const system = if (builtin.link_libc) std.c else std.sys;
+
+    fn getCurrentId() @This().Id {
+        var id: @This().Id = undefined;
+        if (system.thr_self(&id) == -1) unreachable;
+        return id;
+    }
+
+    // TODO: mike
+    fn join(self: Impl) void {
+        _ = self;
+        @panic("WIP");
+    }
+
+    // TODO: mike
+    fn spawn(config: SpawnConfig, comptime f: anytype, args: anytype) !Impl {
+    //fn spawn(self: Impl) void {
+        _ = config;
+        _ = f;
+        _ = args;
+        @panic("WIP");
     }
 };
 

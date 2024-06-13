@@ -64,7 +64,7 @@ pub const nlink_t = c_ulonglong;
 pub const blksize_t = c_long;
 pub const blkcnt_t = c_longlong;
 
-pub const Stat = extern struct {
+pub const stat_t = extern struct {
     dev: dev_t,
     ino: ino_t,
     nlink: nlink_t,
@@ -93,7 +93,7 @@ pub const Stat = extern struct {
         return self.ctim;
     }
 
-    pub fn fromFilestat(stat: wasi.filestat_t) Stat {
+    pub fn fromFilestat(stat: wasi.filestat_t) stat_t {
         return .{
             .dev = stat.dev,
             .ino = stat.ino,

@@ -68,7 +68,7 @@ pub const Iterator = switch (native_os) {
                     self.index = 0;
                     self.end_index = @as(usize, @intCast(rc));
                 }
-                const darwin_entry = @as(*align(1) posix.system.dirent, @ptrCast(&self.buf[self.index]));
+                const darwin_entry = @as(*align(1) posix.system.dirent_t, @ptrCast(&self.buf[self.index]));
                 const next_index = self.index + darwin_entry.reclen;
                 self.index = next_index;
 
@@ -79,14 +79,14 @@ pub const Iterator = switch (native_os) {
                 }
 
                 const entry_kind: Entry.Kind = switch (darwin_entry.type) {
-                    posix.DT.BLK => .block_device,
-                    posix.DT.CHR => .character_device,
-                    posix.DT.DIR => .directory,
-                    posix.DT.FIFO => .named_pipe,
-                    posix.DT.LNK => .sym_link,
-                    posix.DT.REG => .file,
-                    posix.DT.SOCK => .unix_domain_socket,
-                    posix.DT.WHT => .whiteout,
+                    .BLK => .block_device,
+                    .CHR => .character_device,
+                    .DIR => .directory,
+                    .FIFO => .named_pipe,
+                    .LNK => .sym_link,
+                    .REG => .file,
+                    .SOCK => .unix_domain_socket,
+                    .WHT => .whiteout,
                     else => .unknown,
                 };
                 return Entry{
@@ -116,7 +116,7 @@ pub const Iterator = switch (native_os) {
                     self.index = 0;
                     self.end_index = @as(usize, @intCast(rc));
                 }
-                const entry = @as(*align(1) posix.system.dirent, @ptrCast(&self.buf[self.index]));
+                const entry = @as(*align(1) posix.system.dirent_t, @ptrCast(&self.buf[self.index]));
                 const next_index = self.index + entry.reclen;
                 self.index = next_index;
 
@@ -177,8 +177,8 @@ pub const Iterator = switch (native_os) {
                     self.index = 0;
                     self.end_index = @as(usize, @intCast(rc));
                 }
-                const bsd_entry = @as(*align(1) posix.system.dirent, @ptrCast(&self.buf[self.index]));
-                const next_index = self.index + if (@hasDecl(posix.system.dirent, "reclen")) bsd_entry.reclen() else bsd_entry.reclen;
+                const bsd_entry = @as(*align(1) posix.system.dirent_t, @ptrCast(&self.buf[self.index]));
+                const next_index = self.index + if (@hasDecl(posix.system.dirent_t, "reclen")) bsd_entry.reclen() else bsd_entry.reclen;
                 self.index = next_index;
 
                 const name = @as([*]u8, @ptrCast(&bsd_entry.name))[0..bsd_entry.namlen];
@@ -195,14 +195,14 @@ pub const Iterator = switch (native_os) {
                 }
 
                 const entry_kind: Entry.Kind = switch (bsd_entry.type) {
-                    posix.DT.BLK => .block_device,
-                    posix.DT.CHR => .character_device,
-                    posix.DT.DIR => .directory,
-                    posix.DT.FIFO => .named_pipe,
-                    posix.DT.LNK => .sym_link,
-                    posix.DT.REG => .file,
-                    posix.DT.SOCK => .unix_domain_socket,
-                    posix.DT.WHT => .whiteout,
+                    .BLK => .block_device,
+                    .CHR => .character_device,
+                    .DIR => .directory,
+                    .FIFO => .named_pipe,
+                    .LNK => .sym_link,
+                    .REG => .file,
+                    .SOCK => .unix_domain_socket,
+                    .WHT => .whiteout,
                     else => .unknown,
                 };
                 return Entry{
@@ -1647,14 +1647,14 @@ pub fn deleteFile(self: Dir, sub_path: []const u8) DeleteFileError!void {
 
 /// Same as `deleteFile` except the parameter is null-terminated.
 pub fn deleteFileZ(self: Dir, sub_path_c: [*:0]const u8) DeleteFileError!void {
-    posix.unlinkatZ(self.fd, sub_path_c, 0) catch |err| switch (err) {
+    posix.unlinkatZ(self.fd, sub_path_c, .{}) catch |err| switch (err) {
         error.DirNotEmpty => unreachable, // not passing AT.REMOVEDIR
         error.AccessDenied => |e| switch (native_os) {
             // non-Linux POSIX systems return EPERM when trying to delete a directory, so
             // we need to handle that case specifically and translate the error
             .macos, .ios, .freebsd, .netbsd, .dragonfly, .openbsd, .solaris, .illumos => {
                 // Don't follow symlinks to match unlinkat (which acts on symlinks rather than follows them)
-                const fstat = posix.fstatatZ(self.fd, sub_path_c, posix.AT.SYMLINK_NOFOLLOW) catch return e;
+                const fstat = posix.fstatatZ(self.fd, sub_path_c, .{ .SYMLINK_NOFOLLOW = true }) catch return e;
                 const is_dir = fstat.mode & posix.S.IFMT == posix.S.IFDIR;
                 return if (is_dir) error.IsDir else e;
             },
@@ -1705,7 +1705,7 @@ pub fn deleteDir(self: Dir, sub_path: []const u8) DeleteDirError!void {
         const sub_path_w = try windows.sliceToPrefixedFileW(self.fd, sub_path);
         return self.deleteDirW(sub_path_w.span());
     } else if (native_os == .wasi and !builtin.link_libc) {
-        posix.unlinkat(self.fd, sub_path, posix.AT.REMOVEDIR) catch |err| switch (err) {
+        posix.unlinkat(self.fd, sub_path, .{ .REMOVEDIR = true }) catch |err| switch (err) {
             error.IsDir => unreachable, // not possible since we pass AT.REMOVEDIR
             else => |e| return e,
         };
@@ -1717,7 +1717,7 @@ pub fn deleteDir(self: Dir, sub_path: []const u8) DeleteDirError!void {
 
 /// Same as `deleteDir` except the parameter is null-terminated.
 pub fn deleteDirZ(self: Dir, sub_path_c: [*:0]const u8) DeleteDirError!void {
-    posix.unlinkatZ(self.fd, sub_path_c, posix.AT.REMOVEDIR) catch |err| switch (err) {
+    posix.unlinkatZ(self.fd, sub_path_c, .{ .REMOVEDIR = true }) catch |err| switch (err) {
         error.IsDir => unreachable, // not possible since we pass AT.REMOVEDIR
         else => |e| return e,
     };
@@ -2415,12 +2415,12 @@ pub fn accessZ(self: Dir, sub_path: [*:0]const u8, flags: File.OpenFlags) Access
         };
         return self.accessW(sub_path_w.span().ptr, flags);
     }
-    const os_mode = switch (flags.mode) {
-        .read_only => @as(u32, posix.F_OK),
-        .write_only => @as(u32, posix.W_OK),
-        .read_write => @as(u32, posix.R_OK | posix.W_OK),
+    const mode: posix.access_mode_t = switch (flags.mode) {
+        .read_only => .{ .READ = true },
+        .write_only => .{ .WRITE = true },
+        .read_write => .{ .READ = true, .WRITE = true },
     };
-    const result = posix.faccessatZ(self.fd, sub_path, os_mode, 0);
+    const result = posix.faccessatZ(self.fd, sub_path, mode, .{});
     return result;
 }
 
@@ -2570,7 +2570,7 @@ fn copy_file(fd_in: posix.fd_t, fd_out: posix.fd_t, maybe_size: ?u64) CopyFileRa
 
     // Sendfile is a zero-copy mechanism iff the OS supports it, otherwise the
     // fallback code will copy the contents chunk by chunk.
-    const empty_iovec = [0]posix.iovec_const{};
+    const empty_iovec = [0]posix.iovec_const_t{};
     var offset: u64 = 0;
     sendfile_loop: while (true) {
         const amt = try posix.sendfile(fd_out, fd_in, offset, 0, &empty_iovec, &empty_iovec, 0);
@@ -2640,7 +2640,7 @@ pub fn statFile(self: Dir, sub_path: []const u8) StatFileError!Stat {
         const st = try std.os.fstatat_wasi(self.fd, sub_path, .{ .SYMLINK_FOLLOW = true });
         return Stat.fromWasi(st);
     }
-    const st = try posix.fstatat(self.fd, sub_path, 0);
+    const st = try posix.fstatat(self.fd, sub_path, .{});
     return Stat.fromSystem(st);
 }
 

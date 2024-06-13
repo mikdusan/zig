@@ -144,7 +144,7 @@ pub fn serveMessage(
     header: OutMessage.Header,
     bufs: []const []const u8,
 ) !void {
-    var iovecs: [10]std.posix.iovec_const = undefined;
+    var iovecs: [10]std.posix.iovec_const_t = undefined;
     const header_le = bswap(header);
     iovecs[0] = .{
         .base = @as([*]const u8, @ptrCast(&header_le)),

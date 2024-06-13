@@ -1596,6 +1596,7 @@ pub fn posixGetUserInfo(name: []const u8) !UserInfo {
 
 pub fn getBaseAddress() usize {
     switch (native_os) {
+        .freebsd => return @intFromPtr(&std.sys._elf_aux_vector),
         .linux => {
             const base = std.os.linux.getauxval(std.elf.AT_BASE);
             if (base != 0) {
@@ -1604,9 +1605,7 @@ pub fn getBaseAddress() usize {
             const phdr = std.os.linux.getauxval(std.elf.AT_PHDR);
             return phdr - @sizeOf(std.elf.Ehdr);
         },
-        .macos, .freebsd, .netbsd => {
-            return @intFromPtr(&std.c._mh_execute_header);
-        },
+        .macos => return @intFromPtr(&std.c._mh_execute_header),
         .windows => return @intFromPtr(windows.kernel32.GetModuleHandleW(null)),
         else => @compileError("Unsupported OS"),
     }
@@ -1788,10 +1787,10 @@ pub fn raiseFileDescriptorLimit() void {
     if (lim.cur == lim.max) return;
 
     // Do a binary search for the limit.
-    var min: posix.rlim_t = lim.cur;
-    var max: posix.rlim_t = 1 << 20;
+    var min: posix.rlimit_value_t = lim.cur;
+    var max: posix.rlimit_value_t = 1 << 20;
     // But if there's a defined upper bound, don't search, just set it.
-    if (lim.max != posix.RLIM.INFINITY) {
+    if (lim.max != posix.rlimit_t.INFINITY) {
         min = lim.max;
         max = lim.max;
     }
