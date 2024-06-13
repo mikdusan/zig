@@ -24,6 +24,7 @@ const dl = @import("dynamic_library.zig");
 const MAX_PATH_BYTES = std.fs.MAX_PATH_BYTES;
 const posix = std.posix;
 
+pub const freebsd = @import("os/freebsd.zig");
 pub const linux = @import("os/linux.zig");
 pub const plan9 = @import("os/plan9.zig");
 pub const uefi = @import("os/uefi.zig");
@@ -33,12 +34,14 @@ pub const windows = @import("os/windows.zig");
 
 comptime {
     if (builtin.is_test) {
-        _ = linux;
-        if (builtin.os.tag == .uefi) {
-            _ = uefi;
-        }
-        _ = wasi;
-        _ = windows;
+        _ = switch (builtin.os.tag) {
+            .freebsd => freebsd,
+            .linux => linux,
+            .uefi => uefi,
+            .wasi => wasi,
+            .windows => windows,
+            else => {},
+        };
     }
 }
 
