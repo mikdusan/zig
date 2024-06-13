@@ -16,12 +16,14 @@ comptime {
     assert(limb_info.signedness == .unsigned);
 }
 
-test {
-    _ = int;
-    _ = Rational;
-    _ = Limb;
-    _ = SignedLimb;
-    _ = DoubleLimb;
-    _ = SignedDoubleLimb;
-    _ = Log2Limb;
+comptime {
+    if (@import("builtin").is_test) {
+        _ = int;
+        _ = Rational;
+        _ = Limb;
+        _ = SignedLimb;
+        _ = DoubleLimb;
+        _ = SignedDoubleLimb;
+        _ = Log2Limb;
+    }
 }

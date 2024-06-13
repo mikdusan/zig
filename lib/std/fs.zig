@@ -726,17 +726,19 @@ pub fn realpathAlloc(allocator: Allocator, pathname: []const u8) ![]u8 {
     return allocator.dupe(u8, try posix.realpath(pathname, &buf));
 }
 
-test {
-    if (native_os != .wasi) {
-        _ = &makeDirAbsolute;
-        _ = &makeDirAbsoluteZ;
-        _ = &copyFileAbsolute;
-        _ = &updateFileAbsolute;
+comptime {
+    if (builtin.is_test) {
+        if (native_os != .wasi) {
+            _ = &makeDirAbsolute;
+            _ = &makeDirAbsoluteZ;
+            _ = &copyFileAbsolute;
+            _ = &updateFileAbsolute;
+        }
+        _ = &AtomicFile;
+        _ = &Dir;
+        _ = &File;
+        _ = &path;
+        _ = @import("fs/test.zig");
+        _ = @import("fs/get_app_data_dir.zig");
     }
-    _ = &AtomicFile;
-    _ = &Dir;
-    _ = &File;
-    _ = &path;
-    _ = @import("fs/test.zig");
-    _ = @import("fs/get_app_data_dir.zig");
 }

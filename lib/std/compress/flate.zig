@@ -79,9 +79,11 @@ const fixedBufferStream = std.io.fixedBufferStream;
 const print = std.debug.print;
 const builtin = @import("builtin");
 
-test {
-    _ = deflate;
-    _ = inflate;
+comptime {
+    if (builtin.is_test) {
+        _ = deflate;
+        _ = inflate;
+    }
 }
 
 test "compress/decompress" {

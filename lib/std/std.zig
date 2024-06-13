@@ -164,8 +164,10 @@ comptime {
     _ = start;
 }
 
-test {
-    testing.refAllDecls(@This());
+comptime {
+    if (@import("builtin").is_test) {
+        testing.refAllDecls(@This());
+    }
 }
 
 comptime {

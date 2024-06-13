@@ -9,8 +9,10 @@ pub const TrailerFlags = @import("meta/trailer_flags.zig").TrailerFlags;
 
 const Type = std.builtin.Type;
 
-test {
-    _ = TrailerFlags;
+comptime {
+    if (@import("builtin").is_test) {
+        _ = TrailerFlags;
+    }
 }
 
 /// Returns the variant of an enum type, `T`, which is named `str`, or `null` if no such variant exists.

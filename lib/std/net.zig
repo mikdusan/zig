@@ -1929,9 +1929,11 @@ pub const Server = struct {
     }
 };
 
-test {
-    _ = @import("net/test.zig");
-    _ = Server;
-    _ = Stream;
-    _ = Address;
+comptime {
+    if (builtin.is_test) {
+        _ = @import("net/test.zig");
+        _ = Server;
+        _ = Stream;
+        _ = Address;
+    }
 }

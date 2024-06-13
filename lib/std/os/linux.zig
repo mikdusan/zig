@@ -22,8 +22,8 @@ const iovec = std.posix.iovec;
 const iovec_const = std.posix.iovec_const;
 const ACCMODE = std.posix.ACCMODE;
 
-test {
-    if (builtin.os.tag == .linux) {
+comptime {
+    if (builtin.is_test and builtin.os.tag == .linux) {
         _ = @import("linux/test.zig");
     }
 }

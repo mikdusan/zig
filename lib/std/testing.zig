@@ -478,7 +478,7 @@ const BytesDiffer = struct {
     }
 };
 
-test {
+test "expectEqualSlices" {
     try expectEqualSlices(u8, "foo\x00", "foo\x00");
     try expectEqualSlices(u16, &[_]u16{ 100, 200, 300, 400 }, &[_]u16{ 100, 200, 300, 400 });
     const E = enum { foo, bar };
@@ -950,7 +950,7 @@ fn printLine(line: []const u8) void {
     print("{s}\n", .{line});
 }
 
-test {
+test "expectEqualStrings" {
     try expectEqualStrings("foo", "foo");
 }
 

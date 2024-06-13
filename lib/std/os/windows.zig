@@ -13,8 +13,8 @@ const maxInt = std.math.maxInt;
 const native_arch = builtin.cpu.arch;
 const UnexpectedError = std.posix.UnexpectedError;
 
-test {
-    if (builtin.os.tag == .windows) {
+comptime {
+    if (builtin.is_test and builtin.os.tag == .windows) {
         _ = @import("windows/test.zig");
     }
 }

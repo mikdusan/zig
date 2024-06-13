@@ -2883,6 +2883,8 @@ pub inline fn inValgrind() bool {
     return std.valgrind.runningOnValgrind() > 0;
 }
 
-test {
-    _ = &dump_hex;
+comptime {
+    if (builtin.is_test) {
+        _ = &dump_hex;
+    }
 }

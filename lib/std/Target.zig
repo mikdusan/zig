@@ -2764,6 +2764,8 @@ const std = @import("std.zig");
 const builtin = @import("builtin");
 const Allocator = std.mem.Allocator;
 
-test {
-    std.testing.refAllDecls(Cpu.Arch);
+comptime {
+    if (builtin.is_test) {
+        std.testing.refAllDecls(Cpu.Arch);
+    }
 }

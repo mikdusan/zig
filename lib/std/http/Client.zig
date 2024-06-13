@@ -1769,6 +1769,8 @@ pub fn fetch(client: *Client, options: FetchOptions) !FetchResult {
     };
 }
 
-test {
-    _ = &initDefaultProxies;
+comptime {
+    if (builtin.is_test) {
+        _ = &initDefaultProxies;
+    }
 }

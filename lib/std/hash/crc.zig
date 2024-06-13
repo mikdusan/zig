@@ -9,8 +9,10 @@ pub const Crc32SmallWithPoly = impl.Crc32SmallWithPoly;
 
 pub const Crc32 = Crc32IsoHdlc;
 
-test {
-    _ = @import("crc/test.zig");
+comptime {
+    if (@import("builtin").is_test) {
+        _ = @import("crc/test.zig");
+    }
 }
 
 pub const Crc3Gsm = Crc(u3, .{

@@ -477,6 +477,8 @@ pub const AffineCoordinates = struct {
     }
 };
 
-test {
-    _ = @import("tests/p256.zig");
+comptime {
+    if (@import("builtin").is_test) {
+        _ = @import("tests/p256.zig");
+    }
 }

@@ -4205,6 +4205,8 @@ fn fixedIntFromSignedDoubleLimb(A: SignedDoubleLimb, storage: []Limb) Mutable {
     };
 }
 
-test {
-    _ = @import("int_test.zig");
+comptime {
+    if (builtin.is_test) {
+        _ = @import("int_test.zig");
+    }
 }

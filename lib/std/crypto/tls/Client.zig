@@ -1463,6 +1463,8 @@ else
         .AES_256_GCM_SHA384,
     });
 
-test {
-    _ = StreamInterface;
+comptime {
+    if (builtin.is_test) {
+        _ = StreamInterface;
+    }
 }

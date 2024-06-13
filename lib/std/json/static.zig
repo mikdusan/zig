@@ -797,6 +797,8 @@ fn freeAllocated(allocator: Allocator, token: Token) void {
     }
 }
 
-test {
-    _ = @import("./static_test.zig");
+comptime {
+    if (@import("builtin").is_test) {
+        _ = @import("./static_test.zig");
+    }
 }

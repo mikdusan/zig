@@ -835,9 +835,11 @@ test PaxIterator {
     }
 }
 
-test {
-    _ = @import("tar/test.zig");
-    _ = Diagnostics;
+comptime {
+    if (@import("builtin").is_test) {
+        _ = @import("tar/test.zig");
+        _ = Diagnostics;
+    }
 }
 
 test "header parse size" {

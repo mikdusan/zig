@@ -2591,7 +2591,9 @@ pub fn systemIntegrationOption(
     }
 }
 
-test {
-    _ = Cache;
-    _ = Step;
+comptime {
+    if (builtin.is_test) {
+        _ = Cache;
+        _ = Step;
+    }
 }

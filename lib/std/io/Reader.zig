@@ -380,6 +380,8 @@ const mem = std.mem;
 const testing = std.testing;
 const native_endian = @import("builtin").target.cpu.arch.endian();
 
-test {
-    _ = @import("Reader/test.zig");
+comptime {
+    if (@import("builtin").is_test) {
+        _ = @import("Reader/test.zig");
+    }
 }

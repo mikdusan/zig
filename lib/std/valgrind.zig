@@ -267,7 +267,9 @@ pub fn monitorCommand(command: [*]u8) bool {
 pub const memcheck = @import("valgrind/memcheck.zig");
 pub const callgrind = @import("valgrind/callgrind.zig");
 
-test {
-    _ = memcheck;
-    _ = callgrind;
+comptime {
+    if (builtin.is_test) {
+        _ = memcheck;
+        _ = callgrind;
+    }
 }

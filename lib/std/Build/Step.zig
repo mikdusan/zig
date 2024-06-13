@@ -548,18 +548,20 @@ pub fn writeManifest(s: *Step, man: *std.Build.Cache.Manifest) !void {
     }
 }
 
-test {
-    _ = CheckFile;
-    _ = CheckObject;
-    _ = Fmt;
-    _ = InstallArtifact;
-    _ = InstallDir;
-    _ = InstallFile;
-    _ = ObjCopy;
-    _ = Compile;
-    _ = Options;
-    _ = RemoveDir;
-    _ = Run;
-    _ = TranslateC;
-    _ = WriteFile;
+comptime {
+    if (builtin.is_test) {
+        _ = CheckFile;
+        _ = CheckObject;
+        _ = Fmt;
+        _ = InstallArtifact;
+        _ = InstallDir;
+        _ = InstallFile;
+        _ = ObjCopy;
+        _ = Compile;
+        _ = Options;
+        _ = RemoveDir;
+        _ = Run;
+        _ = TranslateC;
+        _ = WriteFile;
+    }
 }

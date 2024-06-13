@@ -1082,20 +1082,22 @@ pub const EnvVar = enum {
     }
 };
 
-test {
-    _ = Ast;
-    _ = AstRlAnnotate;
-    _ = BuiltinFn;
-    _ = Client;
-    _ = ErrorBundle;
-    _ = LibCDirs;
-    _ = LibCInstallation;
-    _ = Server;
-    _ = WindowsSdk;
-    _ = number_literal;
-    _ = primitives;
-    _ = string_literal;
-    _ = system;
-    _ = target;
-    _ = c_translation;
+comptime {
+    if (@import("builtin").is_test) {
+        _ = Ast;
+        _ = AstRlAnnotate;
+        _ = BuiltinFn;
+        _ = Client;
+        _ = ErrorBundle;
+        _ = LibCDirs;
+        _ = LibCInstallation;
+        _ = Server;
+        _ = WindowsSdk;
+        _ = number_literal;
+        _ = primitives;
+        _ = string_literal;
+        _ = system;
+        _ = target;
+        _ = c_translation;
+    }
 }

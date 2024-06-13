@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const crypto = std.crypto;
 const mem = std.mem;
 const meta = std.meta;
@@ -477,8 +478,8 @@ pub const AffineCoordinates = struct {
     }
 };
 
-test {
-    if (@import("builtin").zig_backend == .stage2_c) return error.SkipZigTest;
-
-    _ = @import("tests/p384.zig");
+comptime {
+    if (builtin.is_test and builtin.zig_backend != .stage2_c) {
+        _ = @import("tests/p384.zig");
+    }
 }

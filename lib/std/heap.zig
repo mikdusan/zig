@@ -882,15 +882,17 @@ pub fn testAllocatorAlignedShrink(base_allocator: mem.Allocator) !void {
     try testing.expect(slice[60] == 0x34);
 }
 
-test {
-    _ = LoggingAllocator;
-    _ = LogToWriterAllocator;
-    _ = ScopedLoggingAllocator;
-    _ = @import("heap/memory_pool.zig");
-    _ = ArenaAllocator;
-    _ = GeneralPurposeAllocator;
-    if (comptime builtin.target.isWasm()) {
-        _ = WasmAllocator;
-        _ = WasmPageAllocator;
+comptime {
+    if (builtin.is_test) {
+        _ = LoggingAllocator;
+        _ = LogToWriterAllocator;
+        _ = ScopedLoggingAllocator;
+        _ = @import("heap/memory_pool.zig");
+        _ = ArenaAllocator;
+        _ = GeneralPurposeAllocator;
+        if (builtin.target.isWasm()) {
+            _ = WasmAllocator;
+            _ = WasmPageAllocator;
+        }
     }
 }

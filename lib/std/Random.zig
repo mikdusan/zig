@@ -432,7 +432,9 @@ fn MinArrayIndex(comptime Index: type) type {
     return if (index_info.bits >= @typeInfo(usize).Int.bits) usize else Index;
 }
 
-test {
-    std.testing.refAllDecls(@This());
-    _ = @import("Random/test.zig");
+comptime {
+    if (@import("builtin").is_test) {
+        std.testing.refAllDecls(@This());
+        _ = @import("Random/test.zig");
+    }
 }

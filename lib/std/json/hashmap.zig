@@ -74,6 +74,8 @@ pub fn ArrayHashMap(comptime T: type) type {
     };
 }
 
-test {
-    _ = @import("hashmap_test.zig");
+comptime {
+    if (@import("builtin").is_test) {
+        _ = @import("hashmap_test.zig");
+    }
 }

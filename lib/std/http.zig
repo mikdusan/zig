@@ -270,12 +270,12 @@ pub const Status = enum(u10) {
         };
     }
 
-    test {
+    test "phrase" {
         try std.testing.expectEqualStrings("OK", Status.ok.phrase().?);
         try std.testing.expectEqualStrings("Not Found", Status.not_found.phrase().?);
     }
 
-    test {
+    test "class" {
         try std.testing.expectEqual(Status.Class.success, Status.ok.class());
         try std.testing.expectEqual(Status.Class.client_error, Status.not_found.class());
     }
@@ -310,14 +310,16 @@ pub const Header = struct {
 const builtin = @import("builtin");
 const std = @import("std.zig");
 
-test {
-    _ = Client;
-    _ = Method;
-    _ = Server;
-    _ = Status;
-    _ = HeadParser;
-    _ = ChunkParser;
-    if (builtin.os.tag != .wasi) {
-        _ = @import("http/test.zig");
+comptime {
+    if (builtin.is_test) {
+        _ = Client;
+        _ = Method;
+        _ = Server;
+        _ = Status;
+        _ = HeadParser;
+        _ = ChunkParser;
+        if (builtin.os.tag != .wasi) {
+            _ = @import("http/test.zig");
+        }
     }
 }

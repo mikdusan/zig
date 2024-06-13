@@ -165,6 +165,8 @@ test "exp dist smoke test" {
     }
 }
 
-test {
-    _ = NormDist;
+comptime {
+    if (builtin.is_test) {
+        _ = NormDist;
+    }
 }

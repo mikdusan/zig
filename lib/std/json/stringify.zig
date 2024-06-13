@@ -676,6 +676,8 @@ pub fn encodeJsonStringChars(chars: []const u8, options: StringifyOptions, write
     try writer.writeAll(chars[write_cursor..chars.len]);
 }
 
-test {
-    _ = @import("./stringify_test.zig");
+comptime {
+    if (@import("builtin").is_test) {
+        _ = @import("./stringify_test.zig");
+    }
 }

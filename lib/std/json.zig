@@ -114,12 +114,14 @@ pub const encodeJsonStringChars = @import("json/stringify.zig").encodeJsonString
 pub const Formatter = @import("json/fmt.zig").Formatter;
 pub const fmt = @import("json/fmt.zig").fmt;
 
-test {
-    _ = @import("json/test.zig");
-    _ = @import("json/scanner.zig");
-    _ = @import("json/dynamic.zig");
-    _ = @import("json/hashmap.zig");
-    _ = @import("json/static.zig");
-    _ = @import("json/stringify.zig");
-    _ = @import("json/JSONTestSuite_test.zig");
+comptime {
+    if (builtin.is_test) {
+        _ = @import("json/test.zig");
+        _ = @import("json/scanner.zig");
+        _ = @import("json/dynamic.zig");
+        _ = @import("json/hashmap.zig");
+        _ = @import("json/static.zig");
+        _ = @import("json/stringify.zig");
+        _ = @import("json/JSONTestSuite_test.zig");
+    }
 }

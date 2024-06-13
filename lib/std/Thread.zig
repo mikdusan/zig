@@ -1449,14 +1449,16 @@ test "setName, getName" {
     thread.join();
 }
 
-test {
-    // Doesn't use testing.refAllDecls() since that would pull in the compileError spinLoopHint.
-    _ = Futex;
-    _ = ResetEvent;
-    _ = Mutex;
-    _ = Semaphore;
-    _ = Condition;
-    _ = RwLock;
+comptime {
+    if (builtin.is_test) {
+        // Doesn't use testing.refAllDecls() since that would pull in the compileError spinLoopHint.
+        _ = Futex;
+        _ = ResetEvent;
+        _ = Mutex;
+        _ = Semaphore;
+        _ = Condition;
+        _ = RwLock;
+    }
 }
 
 fn testIncrementNotify(value: *usize, event: *ResetEvent) void {

@@ -2794,6 +2794,8 @@ pub const FixedBufferReader = struct {
     }
 };
 
-test {
-    std.testing.refAllDecls(@This());
+comptime {
+    if (builtin.is_test) {
+        std.testing.refAllDecls(@This());
+    }
 }

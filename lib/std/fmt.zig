@@ -789,8 +789,10 @@ fn formatFloatValue(
     }
 }
 
-test {
-    _ = &format_float;
+comptime {
+    if (builtin.is_test) {
+        _ = &format_float;
+    }
 }
 
 pub const Case = enum { lower, upper };
@@ -1742,8 +1744,10 @@ test parseIntSizeSuffix {
 pub const parseFloat = @import("fmt/parse_float.zig").parseFloat;
 pub const ParseFloatError = @import("fmt/parse_float.zig").ParseFloatError;
 
-test {
-    _ = &parseFloat;
+comptime {
+    if (builtin.is_test) {
+        _ = &parseFloat;
+    }
 }
 
 pub fn charToDigit(c: u8, base: u8) (error{InvalidCharacter}!u8) {

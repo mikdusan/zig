@@ -189,25 +189,27 @@ test "magnitude" {
     try testing.expect(math.approxEqAbs(f32, c, 5.83095, epsilon));
 }
 
-test {
-    _ = @import("complex/abs.zig");
-    _ = @import("complex/acosh.zig");
-    _ = @import("complex/acos.zig");
-    _ = @import("complex/arg.zig");
-    _ = @import("complex/asinh.zig");
-    _ = @import("complex/asin.zig");
-    _ = @import("complex/atanh.zig");
-    _ = @import("complex/atan.zig");
-    _ = @import("complex/conj.zig");
-    _ = @import("complex/cosh.zig");
-    _ = @import("complex/cos.zig");
-    _ = @import("complex/exp.zig");
-    _ = @import("complex/log.zig");
-    _ = @import("complex/pow.zig");
-    _ = @import("complex/proj.zig");
-    _ = @import("complex/sinh.zig");
-    _ = @import("complex/sin.zig");
-    _ = @import("complex/sqrt.zig");
-    _ = @import("complex/tanh.zig");
-    _ = @import("complex/tan.zig");
+comptime {
+    if (@import("builtin").is_test) {
+        _ = @import("complex/abs.zig");
+        _ = @import("complex/acosh.zig");
+        _ = @import("complex/acos.zig");
+        _ = @import("complex/arg.zig");
+        _ = @import("complex/asinh.zig");
+        _ = @import("complex/asin.zig");
+        _ = @import("complex/atanh.zig");
+        _ = @import("complex/atan.zig");
+        _ = @import("complex/conj.zig");
+        _ = @import("complex/cosh.zig");
+        _ = @import("complex/cos.zig");
+        _ = @import("complex/exp.zig");
+        _ = @import("complex/log.zig");
+        _ = @import("complex/pow.zig");
+        _ = @import("complex/proj.zig");
+        _ = @import("complex/sinh.zig");
+        _ = @import("complex/sin.zig");
+        _ = @import("complex/sqrt.zig");
+        _ = @import("complex/tanh.zig");
+        _ = @import("complex/tan.zig");
+    }
 }

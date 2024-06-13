@@ -25,8 +25,10 @@ const cast = std.math.cast;
 const assert = std.debug.assert;
 const native_os = builtin.os.tag;
 
-test {
-    _ = @import("posix/test.zig");
+comptime {
+    if (builtin.is_test) {
+        _ = @import("posix/test.zig");
+    }
 }
 
 /// Whether to use libc for the POSIX API layer.

@@ -1709,6 +1709,8 @@ pub fn isNumberFormattedLikeAnInteger(value: []const u8) bool {
     return std.mem.indexOfAny(u8, value, ".eE") == null;
 }
 
-test {
-    _ = @import("./scanner_test.zig");
+comptime {
+    if (@import("builtin").is_test) {
+        _ = @import("./scanner_test.zig");
+    }
 }

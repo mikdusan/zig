@@ -3620,7 +3620,9 @@ const Allocator = std.mem.Allocator;
 const Parse = @import("Parse.zig");
 const private_render = @import("./render.zig");
 
-test {
-    _ = Parse;
-    _ = private_render;
+comptime {
+    if (@import("builtin").is_test) {
+        _ = Parse;
+        _ = private_render;
+    }
 }

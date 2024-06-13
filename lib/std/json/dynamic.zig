@@ -178,6 +178,8 @@ fn handleCompleteValue(stack: *Array, allocator: Allocator, source: anytype, val
     }
 }
 
-test {
-    _ = @import("dynamic_test.zig");
+comptime {
+    if (@import("builtin").is_test) {
+        _ = @import("dynamic_test.zig");
+    }
 }

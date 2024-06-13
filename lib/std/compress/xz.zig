@@ -140,6 +140,8 @@ pub fn Decompress(comptime ReaderType: type) type {
     };
 }
 
-test {
-    _ = @import("xz/test.zig");
+comptime {
+    if (@import("builtin").is_test) {
+        _ = @import("xz/test.zig");
+    }
 }

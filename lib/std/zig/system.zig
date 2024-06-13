@@ -1185,10 +1185,12 @@ const Target = std.Target;
 const native_endian = builtin.cpu.arch.endian();
 const posix = std.posix;
 
-test {
-    _ = NativePaths;
+comptime {
+    if (builtin.is_test) {
+        _ = NativePaths;
 
-    _ = darwin;
-    _ = linux;
-    _ = windows;
+        _ = darwin;
+        _ = linux;
+        _ = windows;
+    }
 }

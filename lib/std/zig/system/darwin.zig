@@ -61,6 +61,8 @@ pub fn getSdk(allocator: Allocator, target: Target) ?[]const u8 {
     return allocator.dupe(u8, mem.trimRight(u8, result.stdout, "\r\n")) catch null;
 }
 
-test {
-    _ = macos;
+comptime {
+    if (@import("builtin").is_test) {
+        _ = macos;
+    }
 }

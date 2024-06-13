@@ -31,13 +31,15 @@ pub const wasi = @import("os/wasi.zig");
 pub const emscripten = @import("os/emscripten.zig");
 pub const windows = @import("os/windows.zig");
 
-test {
-    _ = linux;
-    if (builtin.os.tag == .uefi) {
-        _ = uefi;
+comptime {
+    if (builtin.is_test) {
+        _ = linux;
+        if (builtin.os.tag == .uefi) {
+            _ = uefi;
+        }
+        _ = wasi;
+        _ = windows;
     }
-    _ = wasi;
-    _ = windows;
 }
 
 /// See also `getenv`. Populated by startup code before main().

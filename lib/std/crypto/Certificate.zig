@@ -945,8 +945,10 @@ pub const der = struct {
     };
 };
 
-test {
-    _ = Bundle;
+comptime {
+    if (@import("builtin").is_test) {
+        _ = Bundle;
+    }
 }
 
 pub const rsa = struct {

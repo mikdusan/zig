@@ -216,97 +216,99 @@ pub const SideChannelsMitigations = enum {
 
 pub const default_side_channels_mitigations = .medium;
 
-test {
-    _ = aead.aegis.Aegis128L;
-    _ = aead.aegis.Aegis256;
+comptime {
+    if (@import("builtin").is_test) {
+        _ = aead.aegis.Aegis128L;
+        _ = aead.aegis.Aegis256;
 
-    _ = aead.aes_gcm.Aes128Gcm;
-    _ = aead.aes_gcm.Aes256Gcm;
+        _ = aead.aes_gcm.Aes128Gcm;
+        _ = aead.aes_gcm.Aes256Gcm;
 
-    _ = aead.aes_ocb.Aes128Ocb;
-    _ = aead.aes_ocb.Aes256Ocb;
+        _ = aead.aes_ocb.Aes128Ocb;
+        _ = aead.aes_ocb.Aes256Ocb;
 
-    _ = aead.chacha_poly.ChaCha20Poly1305;
-    _ = aead.chacha_poly.ChaCha12Poly1305;
-    _ = aead.chacha_poly.ChaCha8Poly1305;
-    _ = aead.chacha_poly.XChaCha20Poly1305;
-    _ = aead.chacha_poly.XChaCha12Poly1305;
-    _ = aead.chacha_poly.XChaCha8Poly1305;
+        _ = aead.chacha_poly.ChaCha20Poly1305;
+        _ = aead.chacha_poly.ChaCha12Poly1305;
+        _ = aead.chacha_poly.ChaCha8Poly1305;
+        _ = aead.chacha_poly.XChaCha20Poly1305;
+        _ = aead.chacha_poly.XChaCha12Poly1305;
+        _ = aead.chacha_poly.XChaCha8Poly1305;
 
-    _ = aead.isap;
-    _ = aead.salsa_poly.XSalsa20Poly1305;
+        _ = aead.isap;
+        _ = aead.salsa_poly.XSalsa20Poly1305;
 
-    _ = auth.hmac;
-    _ = auth.cmac;
-    _ = auth.siphash;
+        _ = auth.hmac;
+        _ = auth.cmac;
+        _ = auth.siphash;
 
-    _ = core.aes;
-    _ = core.Ascon;
-    _ = core.modes;
+        _ = core.aes;
+        _ = core.Ascon;
+        _ = core.modes;
 
-    _ = dh.X25519;
+        _ = dh.X25519;
 
-    _ = kem.kyber_d00;
+        _ = kem.kyber_d00;
 
-    _ = ecc.Curve25519;
-    _ = ecc.Edwards25519;
-    _ = ecc.P256;
-    _ = ecc.P384;
-    _ = ecc.Ristretto255;
-    _ = ecc.Secp256k1;
+        _ = ecc.Curve25519;
+        _ = ecc.Edwards25519;
+        _ = ecc.P256;
+        _ = ecc.P384;
+        _ = ecc.Ristretto255;
+        _ = ecc.Secp256k1;
 
-    _ = hash.blake2;
-    _ = hash.Blake3;
-    _ = hash.Md5;
-    _ = hash.Sha1;
-    _ = hash.sha2;
-    _ = hash.sha3;
-    _ = hash.composition;
+        _ = hash.blake2;
+        _ = hash.Blake3;
+        _ = hash.Md5;
+        _ = hash.Sha1;
+        _ = hash.sha2;
+        _ = hash.sha3;
+        _ = hash.composition;
 
-    _ = kdf.hkdf;
+        _ = kdf.hkdf;
 
-    _ = onetimeauth.Ghash;
-    _ = onetimeauth.Poly1305;
+        _ = onetimeauth.Ghash;
+        _ = onetimeauth.Poly1305;
 
-    _ = pwhash.Encoding;
+        _ = pwhash.Encoding;
 
-    _ = pwhash.Error;
-    _ = pwhash.HasherError;
-    _ = pwhash.KdfError;
+        _ = pwhash.Error;
+        _ = pwhash.HasherError;
+        _ = pwhash.KdfError;
 
-    _ = pwhash.argon2;
-    _ = pwhash.bcrypt;
-    _ = pwhash.scrypt;
-    _ = pwhash.pbkdf2;
+        _ = pwhash.argon2;
+        _ = pwhash.bcrypt;
+        _ = pwhash.scrypt;
+        _ = pwhash.pbkdf2;
 
-    _ = pwhash.phc_format;
+        _ = pwhash.phc_format;
 
-    _ = sign.Ed25519;
-    _ = sign.ecdsa;
+        _ = sign.Ed25519;
+        _ = sign.ecdsa;
 
-    _ = stream.chacha.ChaCha20IETF;
-    _ = stream.chacha.ChaCha12IETF;
-    _ = stream.chacha.ChaCha8IETF;
-    _ = stream.chacha.ChaCha20With64BitNonce;
-    _ = stream.chacha.ChaCha12With64BitNonce;
-    _ = stream.chacha.ChaCha8With64BitNonce;
-    _ = stream.chacha.XChaCha20IETF;
-    _ = stream.chacha.XChaCha12IETF;
-    _ = stream.chacha.XChaCha8IETF;
+        _ = stream.chacha.ChaCha20IETF;
+        _ = stream.chacha.ChaCha12IETF;
+        _ = stream.chacha.ChaCha8IETF;
+        _ = stream.chacha.ChaCha20With64BitNonce;
+        _ = stream.chacha.ChaCha12With64BitNonce;
+        _ = stream.chacha.ChaCha8With64BitNonce;
+        _ = stream.chacha.XChaCha20IETF;
+        _ = stream.chacha.XChaCha12IETF;
+        _ = stream.chacha.XChaCha8IETF;
 
-    _ = stream.salsa.Salsa20;
-    _ = stream.salsa.XSalsa20;
+        _ = stream.salsa.Salsa20;
+        _ = stream.salsa.XSalsa20;
 
-    _ = nacl.Box;
-    _ = nacl.SecretBox;
-    _ = nacl.SealedBox;
+        _ = nacl.Box;
+        _ = nacl.SecretBox;
+        _ = nacl.SealedBox;
 
-    _ = utils;
-    _ = ff;
-    _ = random;
-    _ = errors;
-    _ = tls;
-    _ = Certificate;
+        _ = utils;
+        _ = ff;
+        _ = random;
+        _ = errors;
+        _ = tls;
+        _ = Certificate;
+    }
 }
 
 test "CSPRNG" {

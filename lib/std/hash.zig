@@ -51,13 +51,15 @@ pub fn uint32(input: u32) u32 {
     return x;
 }
 
-test {
-    _ = adler;
-    _ = auto_hash;
-    _ = crc;
-    _ = fnv;
-    _ = murmur;
-    _ = cityhash;
-    _ = wyhash;
-    _ = xxhash;
+comptime {
+    if (@import("builtin").is_test) {
+        _ = adler;
+        _ = auto_hash;
+        _ = crc;
+        _ = fnv;
+        _ = murmur;
+        _ = cityhash;
+        _ = wyhash;
+        _ = xxhash;
+    }
 }

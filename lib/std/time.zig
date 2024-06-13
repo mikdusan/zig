@@ -344,6 +344,8 @@ test Timer {
     try testing.expect(timer.read() < time_1);
 }
 
-test {
-    _ = epoch;
+comptime {
+    if (builtin.is_test) {
+        _ = epoch;
+    }
 }

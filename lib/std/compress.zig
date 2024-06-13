@@ -70,12 +70,14 @@ pub fn hashedWriter(
     return .{ .child_writer = writer, .hasher = hasher };
 }
 
-test {
-    _ = lzma;
-    _ = lzma2;
-    _ = xz;
-    _ = zstd;
-    _ = flate;
-    _ = gzip;
-    _ = zlib;
+comptime {
+    if (@import("builtin").is_test) {
+        _ = lzma;
+        _ = lzma2;
+        _ = xz;
+        _ = zstd;
+        _ = flate;
+        _ = gzip;
+        _ = zlib;
+    }
 }

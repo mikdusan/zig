@@ -84,7 +84,9 @@ pub fn Decompress(comptime ReaderType: type) type {
     };
 }
 
-test {
-    _ = @import("lzma/test.zig");
-    _ = @import("lzma/vec2d.zig");
+comptime {
+    if (@import("builtin").is_test) {
+        _ = @import("lzma/test.zig");
+        _ = @import("lzma/vec2d.zig");
+    }
 }

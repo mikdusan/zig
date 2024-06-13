@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const crypto = std.crypto;
 const math = std.math;
 const mem = std.mem;
@@ -555,8 +556,8 @@ pub const AffineCoordinates = struct {
     }
 };
 
-test {
-    if (@import("builtin").zig_backend == .stage2_c) return error.SkipZigTest;
-
-    _ = @import("tests/secp256k1.zig");
+comptime {
+    if (builtin.is_test and builtin.zig_backend != .stage2_c) {
+        _ = @import("tests/secp256k1.zig");
+    }
 }
