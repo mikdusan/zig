@@ -361,35 +361,6 @@ pub const mode_t = packed struct(u16) {
     };
 };
 
-/// Call this when you made a syscall or something that sets errno
-/// and you get an unexpected error.
-pub fn unexpectedSyscallError(err: sys.E) UnexpectedError {
-    if (unexpected_syscall_error_tracing) {
-        std.debug.print("unexpected syscall error: {s} ({d})\n", .{ @tagName(err), @intFromEnum(err) });
-        std.debug.dumpCurrentStackTrace(null);
-    }
-    return error.Unexpected;
-}
-
-pub const UnexpectedError = error{
-    /// The Operating System returned an undocumented error code.
-    ///
-    /// This error is in theory not possible, but it would be better
-    /// to handle this error than to invoke undefined behavior.
-    ///
-    /// When this error code is observed, it usually means the Zig Standard
-    /// Library needs a small patch to add the error code to the error set for
-    /// the respective function.
-    Unexpected,
-};
-
-/// Whether or not `error.Unexpected` will print its value and a stack trace.
-///
-/// If this happens the fix is to add the error code to the corresponding
-/// switch expression, possibly introduce a new error in the error set, and
-/// send a patch to Zig.
-pub const unexpected_syscall_error_tracing = builtin.zig_backend == .stage2_llvm and builtin.mode == .Debug;
-
 /// Check if a top-level decl exists in sys.
 /// - absent decl returns false
 /// - decl != `missing_feature` returns true
@@ -406,11 +377,13 @@ pub fn hasFeature(decl: @TypeOf(.EnumLiteral)) bool {
 
 pub fn hasFeatures(decls: anytype) bool {
     comptime {
-        for (decls) |d| if (!hasFeature(d)) return false;
+        for (decls) |d| if (!sys.hasFeature(d)) return false;
         return true;
     }
 }
 
+/// Value which represents a missing feature and is relied
+/// upon by the `hasFeature*()` functions.
 pub const missing_feature = opaque {};
 
 comptime {

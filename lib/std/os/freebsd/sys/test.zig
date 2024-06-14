@@ -1,7 +1,7 @@
 const std = @import("../../../std.zig");
 const builtin = @import("builtin");
-const testing = std.testing;
 const sys = std.os.freebsd.sys;
+const testing = std.testing;
 
 test "close" {
     if (!comptime sys.hasFeatures(.{ .open, .close })) return error.SkipZigTest;
