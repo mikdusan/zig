@@ -562,8 +562,8 @@ const sys_tab_num_max = b: {
     break :b max;
 };
 
-pub fn syscall0(number: SYS) SyscallResult {
-    return @bitCast(asm volatile (
+pub fn syscall0(number: SYS) usize {
+    return asm volatile (
         \\ movq %%rcx, %%r10
         \\ syscall
         \\ jnc 0f
@@ -574,11 +574,11 @@ pub fn syscall0(number: SYS) SyscallResult {
         : [ret] "={rax}" (-> usize),
         : [number] "{rax}" (@intFromEnum(number)),
         : "rdi", "rsi", "rdx", "rcx", "r8", "r9", "r10", "r11", "cc", "memory"
-    ));
+    );
 }
 
-pub fn syscall1(number: SYS, arg1: usize) SyscallResult {
-    return @bitCast(asm volatile (
+pub fn syscall1(number: SYS, arg1: usize) usize {
+    return asm volatile (
         \\ movq %%rcx, %%r10
         \\ syscall
         \\ jnc 0f
@@ -590,11 +590,11 @@ pub fn syscall1(number: SYS, arg1: usize) SyscallResult {
         : [number] "{rax}" (@intFromEnum(number)),
           [arg1] "{rdi}" (arg1),
         : "rdi", "rsi", "rdx", "rcx", "r8", "r9", "r10", "r11", "cc", "memory"
-    ));
+    );
 }
 
-pub fn syscall2(number: SYS, arg1: usize, arg2: usize) SyscallResult {
-    return @bitCast(asm volatile (
+pub fn syscall2(number: SYS, arg1: usize, arg2: usize) usize {
+    return asm volatile (
         \\ movq %%rcx, %%r10
         \\ syscall
         \\ jnc 0f
@@ -607,11 +607,11 @@ pub fn syscall2(number: SYS, arg1: usize, arg2: usize) SyscallResult {
           [arg1] "{rdi}" (arg1),
           [arg2] "{rsi}" (arg2),
         : "rdi", "rdx", "rcx", "r8", "r9", "r10", "r11", "cc", "memory"
-    ));
+    );
 }
 
-pub fn syscall3(number: SYS, arg1: usize, arg2: usize, arg3: usize) SyscallResult {
-    return @bitCast(asm volatile (
+pub fn syscall3(number: SYS, arg1: usize, arg2: usize, arg3: usize) usize {
+    return asm volatile (
         \\ movq %%rcx, %%r10
         \\ syscall
         \\ jnc 0f
@@ -625,11 +625,11 @@ pub fn syscall3(number: SYS, arg1: usize, arg2: usize, arg3: usize) SyscallResul
           [arg2] "{rsi}" (arg2),
           [arg3] "{rdx}" (arg3),
         : "rdi", "rcx", "r8", "r9", "r10", "r11", "cc", "memory"
-    ));
+    );
 }
 
-pub fn syscall4(number: SYS, arg1: usize, arg2: usize, arg3: usize, arg4: usize) SyscallResult {
-    return @bitCast(asm volatile (
+pub fn syscall4(number: SYS, arg1: usize, arg2: usize, arg3: usize, arg4: usize) usize {
+    return asm volatile (
         \\ movq %%rcx, %%r10
         \\ syscall
         \\ jnc 0f
@@ -644,11 +644,11 @@ pub fn syscall4(number: SYS, arg1: usize, arg2: usize, arg3: usize, arg4: usize)
           [arg3] "{rdx}" (arg3),
           [arg4] "{rcx}" (arg4),
         : "rdi", "r8", "r9", "r10", "r11", "cc", "memory"
-    ));
+    );
 }
 
-pub fn syscall5(number: SYS, arg1: usize, arg2: usize, arg3: usize, arg4: usize, arg5: usize) SyscallResult {
-    return @bitCast(asm volatile (
+pub fn syscall5(number: SYS, arg1: usize, arg2: usize, arg3: usize, arg4: usize, arg5: usize) usize {
+    return asm volatile (
         \\ movq %%rcx, %%r10
         \\ syscall
         \\ jnc 0f
@@ -664,11 +664,11 @@ pub fn syscall5(number: SYS, arg1: usize, arg2: usize, arg3: usize, arg4: usize,
           [arg4] "{rcx}" (arg4),
           [arg5] "{r8}" (arg5),
         : "rdi", "r9", "r10", "r11", "cc", "memory"
-    ));
+    );
 }
 
-pub fn syscall6(number: SYS, arg1: usize, arg2: usize, arg3: usize, arg4: usize, arg5: usize, arg6: usize) SyscallResult {
-    return @bitCast(asm volatile (
+pub fn syscall6(number: SYS, arg1: usize, arg2: usize, arg3: usize, arg4: usize, arg5: usize, arg6: usize) usize {
+    return asm volatile (
         \\ movq %%rcx, %%r10
         \\ syscall
         \\ jnc 0f
@@ -685,18 +685,24 @@ pub fn syscall6(number: SYS, arg1: usize, arg2: usize, arg3: usize, arg4: usize,
           [arg5] "{r8}" (arg5),
           [arg6] "{r9}" (arg6),
         : "rdi", "r10", "r11", "cc", "memory"
-    ));
+    );
 }
 
-pub const SyscallResult = packed union {
-    value: usize,
-    eflag: packed struct(usize) {
-        _: u63 = 0,
-        present: bool = true,
-    },
-    ecode: sys.E,
+pub fn Result(T: type) type {
+    return packed union {
+        value: T,
+        eflag: packed struct(usize) {
+            _: u63 = 0,
+            present: bool = true,
+        },
+        ecode: sys.E,
 
-    comptime {
-        if (@sizeOf(SyscallResult) != @sizeOf(usize)) @compileError("sizes must match");
-    }
-};
+        pub const Type = T;
+
+        comptime {
+            if (@sizeOf(@This()) != @sizeOf(usize)) {
+                @compileError(std.fmt.comptimePrint("expecting size {d} bytes, found {d}", .{ @sizeOf(@This()), @sizeOf(usize) }));
+            }
+        }
+    };
+}

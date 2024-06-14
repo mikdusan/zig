@@ -12,7 +12,6 @@ const sys = std.os.freebsd.sys;
 const syscall = @import("sys/syscall.zig");
 
 pub const SYS = syscall.SYS;
-pub const SyscallResult = syscall.SyscallResult;
 
 pub const syscall0 = syscall.syscall0;
 pub const syscall1 = syscall.syscall1;
@@ -22,9 +21,11 @@ pub const syscall4 = syscall.syscall4;
 pub const syscall5 = syscall.syscall5;
 pub const syscall6 = syscall.syscall6;
 
+pub const Result = syscall.Result;
+
 pub const close = if (@hasField(sys.SYS, "close"))
     struct {
-        fn close(fd: sys.fd_t) sys.SyscallResult {
+        fn close(fd: sys.fd_t) sys.Result(sys.fd_t) {
             return @bitCast(sys.syscall1(.close, @intCast(fd)));
         }
     }.close
@@ -33,8 +34,8 @@ else
 
 pub const getpid = if (@hasField(sys.SYS, "getpid"))
     struct {
-        fn getpid() sys.SyscallResult {
-            return sys.syscall0(.getpid);
+        fn getpid() sys.Result(sys.pid_t) {
+            return @bitCast(sys.syscall0(.getpid));
         }
     }.getpid
 else
@@ -42,8 +43,8 @@ else
 
 pub const getppid = if (@hasField(sys.SYS, "getppid"))
     struct {
-        fn getppid() sys.SyscallResult {
-            return sys.syscall0(.getppid);
+        fn getppid() sys.Result(sys.pid_t) {
+            return @bitCast(sys.syscall0(.getppid));
         }
     }.getppid
 else
@@ -51,8 +52,8 @@ else
 
 pub const getuid = if (@hasField(sys.SYS, "getuid"))
     struct {
-        fn getuid() sys.SyscallResult {
-            return sys.syscall0(.getuid);
+        fn getuid() sys.Result(sys.uid_t) {
+            return @bitCast(sys.syscall0(.getuid));
         }
     }.getuid
 else
@@ -60,8 +61,8 @@ else
 
 pub const geteuid = if (@hasField(sys.SYS, "geteuid"))
     struct {
-        fn geteuid() sys.SyscallResult {
-            return sys.syscall0(.geteuid);
+        fn geteuid() sys.Result(sys.uid_t) {
+            return @bitCast(sys.syscall0(.geteuid));
         }
     }.geteuid
 else
@@ -69,8 +70,8 @@ else
 
 pub const getgid = if (@hasField(sys.SYS, "getgid"))
     struct {
-        fn getgid() sys.SyscallResult {
-            return sys.syscall0(.getgid);
+        fn getgid() sys.Result(sys.gid_t) {
+            return @bitCast(sys.syscall0(.getgid));
         }
     }.getgid
 else
@@ -78,8 +79,8 @@ else
 
 pub const getegid = if (@hasField(sys.SYS, "getegid"))
     struct {
-        fn getegid() sys.SyscallResult {
-            return sys.syscall0(.getegid);
+        fn getegid() sys.Result(sys.gid_t) {
+            return @bitCast(sys.syscall0(.getegid));
         }
     }.getegid
 else
@@ -87,8 +88,8 @@ else
 
 pub const mkdir = if (@hasField(sys.SYS, "mkdir"))
     struct {
-        fn mkdir(path: [*:0]const u8, mode: sys.mode_t) sys.SyscallResult {
-            return sys.syscall2(.mkdir, @intFromPtr(path), @as(u16, @bitCast(mode)));
+        fn mkdir(path: [*:0]const u8, mode: sys.mode_t) sys.Result(void) {
+            return @bitCast(sys.syscall2(.mkdir, @intFromPtr(path), @as(u16, @bitCast(mode))));
         }
     }.mkdir
 else
@@ -96,8 +97,8 @@ else
 
 pub const mkdirat = if (@hasField(sys.SYS, "mkdirat"))
     struct {
-        fn mkdirat(fd: sys.fd_t, path: [*:0]const u8, mode: sys.mode_t) sys.SyscallResult {
-            return sys.syscall3(.mkdirat, @as(u32, @bitCast(fd)), @intFromPtr(path), @as(u16, @bitCast(mode)));
+        fn mkdirat(fd: sys.fd_t, path: [*:0]const u8, mode: sys.mode_t) sys.Result(void) {
+            return @bitCast(sys.syscall3(.mkdirat, @as(u32, @bitCast(fd)), @intFromPtr(path), @as(u16, @bitCast(mode))));
         }
     }.mkdirat
 else
@@ -105,7 +106,7 @@ else
 
 pub const open = if (@hasField(sys.SYS, "open"))
     struct {
-        fn open(path: [*:0]const u8, flags: sys.O, mode: sys.mode_t) sys.SyscallResult {
+        fn open(path: [*:0]const u8, flags: sys.O, mode: sys.mode_t) sys.Result(sys.fd_t) {
             return @bitCast(sys.syscall3(.open, @intFromPtr(path), @as(u32, @bitCast(flags)), @as(u16, @bitCast(mode))));
         }
     }.open
@@ -114,8 +115,8 @@ else
 
 pub const openat = if (@hasField(sys.SYS, "openat"))
     struct {
-        fn openat(fd: sys.fd_t, path: [*:0]const u8, flags: sys.O, mode: sys.mode_t) sys.SyscallResult {
-            return sys.syscall4(.openat, @as(u32, @bitCast(fd)), @intFromPtr(path), @as(u32, @bitCast(flags)), @as(u16, @bitCast(mode)));
+        fn openat(fd: sys.fd_t, path: [*:0]const u8, flags: sys.O, mode: sys.mode_t) sys.Result(sys.fd_t) {
+            return @bitCast(sys.syscall4(.openat, @as(u32, @bitCast(fd)), @intFromPtr(path), @as(u32, @bitCast(flags)), @as(u16, @bitCast(mode))));
         }
     }.openat
 else
@@ -123,8 +124,8 @@ else
 
 pub const setuid = if (@hasField(sys.SYS, "setuid"))
     struct {
-        fn setuid(uid: sys.uid_t) sys.SyscallResult {
-            return sys.syscall1(.setuid, uid);
+        fn setuid(uid: sys.uid_t) sys.Result(void) {
+            return @bitCast(sys.syscall1(.setuid, uid));
         }
     }.setuid
 else
@@ -132,8 +133,8 @@ else
 
 pub const seteuid = if (@hasField(sys.SYS, "seteuid"))
     struct {
-        fn seteuid(uid: sys.uid_t) sys.SyscallResult {
-            return sys.syscall1(.seteuid, uid);
+        fn seteuid(uid: sys.uid_t) sys.Result(void) {
+            return @bitCast(sys.syscall1(.seteuid, uid));
         }
     }.seteuid
 else
@@ -141,8 +142,8 @@ else
 
 pub const setgid = if (@hasField(sys.SYS, "setgid"))
     struct {
-        fn setgid(gid: sys.gid_t) sys.SyscallResult {
-            return sys.syscall1(.setgid, gid);
+        fn setgid(gid: sys.gid_t) sys.Result(void) {
+            return @bitCast(sys.syscall1(.setgid, gid));
         }
     }.setgid
 else
@@ -150,8 +151,8 @@ else
 
 pub const setegid = if (@hasField(sys.SYS, "setegid"))
     struct {
-        fn setegid(gid: sys.gid_t) sys.SyscallResult {
-            return sys.syscall1(.setegid, gid);
+        fn setegid(gid: sys.gid_t) sys.Result(void) {
+            return @bitCast(sys.syscall1(.setegid, gid));
         }
     }.setegid
 else
