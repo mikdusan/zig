@@ -1,5 +1,8 @@
-//! This file provides the C interface to FreeBSD matching
+//! This file provides the C interface to FreeBSD, matching
 //! those that are provided by system libc when libc is linked.
+//!
+//! The following abstractions are made:
+//! * Match versioned symbols if they exist.
 const std = @import("../../std.zig");
 const builtin = @import("builtin");
 const c = std.os.freebsd.c;
@@ -40,27 +43,7 @@ pub const mode_t = sys.mode_t;
 pub const pid_t = sys.pid_t;
 pub const uid_t = sys.uid_t;
 
-/// Check if a top-level decl exists in sys.
-/// - absent decl returns false
-/// - decl != `missing_feature` returns true
-pub fn hasFeature(decl: @TypeOf(.EnumLiteral)) bool {
-    comptime {
-        const name = @tagName(decl);
-        if (!@hasDecl(c, name)) return false;
-        const resolved = @field(c, name);
-        if (@TypeOf(resolved) != type) return true;
-        if (resolved == c.missing_feature) return false;
-        return true;
-    }
-}
-
-pub fn hasFeatures(decls: anytype) bool {
-    comptime {
-        for (decls) |d| if (!c.hasFeature(d)) return false;
-        return true;
-    }
-}
-
-/// Value which represents a missing feature and is relied
-/// upon by the `hasFeature*()` functions.
-pub const missing_feature = opaque {};
+const Feature = std.os.freebsd.Feature(@This());
+pub const hasFeature = Feature.hasFeature;
+pub const hasFeatures = Feature.hasFeatures;
+pub const missing_feature = Feature.missing_feature;

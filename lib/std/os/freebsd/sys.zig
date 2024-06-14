@@ -1,4 +1,4 @@
-//! This file provides the system interface to FreeBSD matching
+//! This file provides the system interface to FreeBSD, matching
 //! those that are provided by system libc, whether or not libc
 //! is linked. The following abstractions are made:
 //!
@@ -104,7 +104,13 @@ pub const mkdirat = if (@hasField(sys.SYS, "mkdirat"))
 else
     sys.missing_feature;
 
-pub const open = if (@hasField(sys.SYS, "open"))
+pub const open = if (@hasField(sys.SYS, "openat"))
+    struct {
+        fn open(path: [*:0]const u8, flags: sys.O, mode: sys.mode_t) sys.Result(sys.fd_t) {
+            return @bitCast(sys.syscall4(.openat, @as(u32, @bitCast(sys.AT.FDCWD)), @intFromPtr(path), @as(u32, @bitCast(flags)), @as(u16, @bitCast(mode))));
+        }
+    }.open
+else if (@hasField(sys.SYS, "open"))
     struct {
         fn open(path: [*:0]const u8, flags: sys.O, mode: sys.mode_t) sys.Result(sys.fd_t) {
             return @bitCast(sys.syscall3(.open, @intFromPtr(path), @as(u32, @bitCast(flags)), @as(u16, @bitCast(mode))));
@@ -361,27 +367,7 @@ pub const mode_t = packed struct(u16) {
     };
 };
 
-/// Check if a top-level decl exists in sys.
-/// - absent decl returns false
-/// - decl != `missing_feature` returns true
-pub fn hasFeature(decl: @TypeOf(.EnumLiteral)) bool {
-    comptime {
-        const name = @tagName(decl);
-        if (!@hasDecl(sys, name)) return false;
-        const resolved = @field(sys, name);
-        if (@TypeOf(resolved) != type) return true;
-        if (resolved == sys.missing_feature) return false;
-        return true;
-    }
-}
-
-pub fn hasFeatures(decls: anytype) bool {
-    comptime {
-        for (decls) |d| if (!sys.hasFeature(d)) return false;
-        return true;
-    }
-}
-
-/// Value which represents a missing feature and is relied
-/// upon by the `hasFeature*()` functions.
-pub const missing_feature = opaque {};
+const Feature = std.os.freebsd.Feature(@This());
+pub const hasFeature = Feature.hasFeature;
+pub const hasFeatures = Feature.hasFeatures;
+pub const missing_feature = Feature.missing_feature;
