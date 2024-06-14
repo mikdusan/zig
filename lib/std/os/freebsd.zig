@@ -8,5 +8,6 @@ comptime {
     if (builtin.is_test) {
         _ = c;
         _ = sys;
+        _ = @import("freebsd/test.zig");
     }
 }

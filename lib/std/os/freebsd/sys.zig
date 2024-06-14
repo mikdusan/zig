@@ -385,9 +385,3 @@ pub fn hasFeatures(decls: anytype) bool {
 /// Value which represents a missing feature and is relied
 /// upon by the `hasFeature*()` functions.
 pub const missing_feature = opaque {};
-
-comptime {
-    if (builtin.is_test) {
-        _ = @import("sys/test.zig");
-    }
-}
