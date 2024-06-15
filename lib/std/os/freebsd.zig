@@ -18,7 +18,7 @@ pub fn Feature(NS: type) type {
                 if (!@hasDecl(NS, name)) return false;
                 const resolved = @field(NS, name);
                 if (@TypeOf(resolved) != type) return true;
-                return resolved != missing_feature);
+                return resolved != missing_feature;
             }
         }
 

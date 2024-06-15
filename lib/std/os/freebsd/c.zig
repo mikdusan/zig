@@ -8,38 +8,49 @@ const builtin = @import("builtin");
 const c = std.os.freebsd.c;
 const sys = std.os.freebsd.sys;
 
-pub fn errno() c.E { return __error().*; }
-extern "c" fn __error() *c.E;
-
+pub extern "c" fn __error() *c.E;
 pub extern "c" fn close(fd: c.fd_t) c_int;
-
+pub extern "c" fn creat(path: [*:0]const u8, mode: c.mode_t) c.fd_t;
+pub extern "c" fn getdents(fd: c.fd_t, buf: [*]u8, len: usize) isize;
+pub extern "c" fn getegid() c.gid_t;
+pub extern "c" fn geteuid() c.uid_t;
+pub extern "c" fn getgid() c.gid_t;
 pub extern "c" fn getpid() c.pid_t;
 pub extern "c" fn getppid() c.pid_t;
-
 pub extern "c" fn getuid() c.uid_t;
-pub extern "c" fn geteuid() c.uid_t;
-
-pub extern "c" fn getgid() c.gid_t;
-pub extern "c" fn getegid() c.gid_t;
-
 pub extern "c" fn mkdir(path: [*:0]const u8, mode: c.mode_t) c_int;
 pub extern "c" fn mkdirat(fd: c.fd_t, path: [*:0]const u8, mode: c.mode_t) c_int;
-
-pub extern "c" fn open(path: [*:0]const u8, flags: c.O, c.mode_t) c.fd_t;
-pub extern "c" fn openat(fd: c.fd_t, path: [*:0]const u8, flags: c.O, c.mode_t) c.fd_t;
-
-pub extern "c" fn setuid(uid: c.uid_t) c_int;
-pub extern "c" fn seteuid(euid: c.uid_t) c_int;
-
-pub extern "c" fn setgid(gid: c.gid_t) c_int;
+pub extern "c" fn open(path: [*:0]const u8, flags: c.O, mode: c.mode_t) c.fd_t;
+pub extern "c" fn openat(fd: c.fd_t, path: [*:0]const u8, flags: c.O, mode: c.mode_t) c.fd_t;
+pub extern "c" fn read(fd: c.fd_t, buf: [*]u8, len: usize) isize;
 pub extern "c" fn setegid(egid: c.gid_t) c_int;
+pub extern "c" fn seteuid(euid: c.uid_t) c_int;
+pub extern "c" fn setgid(gid: c.gid_t) c_int;
+pub extern "c" fn setuid(uid: c.uid_t) c_int;
+pub extern "c" fn write(fd: c.fd_t, buf: [*]const u8, len: usize) isize;
+
+pub fn errno() c.E {
+    return __error().*;
+}
+
+pub const getdirentries = switch (sys.osintver) {
+    12_000_000 => struct {
+        extern "c" fn getdirentries(fd: c.fd_t, buf: [*]u8, len: usize, basep: ?*c.off_t) isize;
+    }.getdirentries,
+    else => struct {
+        extern "c" fn getdirentries(fd: sys.fd_t, buf: [*]u8, len: c_uint, basep: ?*c_long) c_int;
+    }.getdirentries,
+};
 
 pub const AT = sys.AT;
 pub const E = sys.E;
 pub const O = sys.O;
+pub const dirent_t = sys.dirent_t;
 pub const fd_t = sys.fd_t;
 pub const gid_t = sys.gid_t;
+pub const ino_t = sys.ino_t;
 pub const mode_t = sys.mode_t;
+pub const off_t = sys.off_t;
 pub const pid_t = sys.pid_t;
 pub const uid_t = sys.uid_t;
 

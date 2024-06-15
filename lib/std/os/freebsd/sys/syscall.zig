@@ -2,6 +2,8 @@ const std = @import("../../../std.zig");
 const builtin = @import("builtin");
 const sys = std.os.freebsd.sys;
 
+pub const osintver = sys.osintver;
+
 // generated syscall enum
 // - see sys_tab for names
 // - names/syscalls for os version greater than target are absent
@@ -23,13 +25,6 @@ pub const SYS = SYS: {
             .is_exhaustive = true,
         },
     });
-};
-
-// compute os integer version
-// MAJOR * 1_000_000 + MINOR * 1_000 + POINT
-pub const osintver = b: {
-    const sv = builtin.os.version_range.semver.min;
-    break :b sv.major * 1_000_000 + sv.minor * 1_000 + sv.patch;
 };
 
 // FreeBSD has a stable syscall ABI but the naming in syscall.h

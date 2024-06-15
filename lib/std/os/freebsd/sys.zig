@@ -23,12 +23,66 @@ pub const syscall6 = syscall.syscall6;
 
 pub const Result = syscall.Result;
 
+// compute os integer version
+// MAJOR * 1_000_000 + MINOR * 1_000 + POINT
+pub const osintver = b: {
+    const sv = builtin.os.version_range.semver.min;
+    break :b sv.major * 1_000_000 + sv.minor * 1_000 + sv.patch;
+};
+
 pub const close = if (@hasField(sys.SYS, "close"))
     struct {
         fn close(fd: sys.fd_t) sys.Result(sys.fd_t) {
-            return @bitCast(sys.syscall1(.close, @intCast(fd)));
+            return @bitCast(sys.syscall1(.close, @as(u32, @bitCast(fd))));
         }
     }.close
+else
+    sys.missing_feature;
+
+pub const creat = if (@hasField(sys.SYS, "openat"))
+    struct {
+        fn creat(path: [*:0]const u8, mode: sys.mode_t) sys.Result(sys.fd_t) {
+            return @bitCast(sys.syscall4(.openat, @as(u32, @bitCast(sys.AT.FDCWD)), @intFromPtr(path), @as(u32, @bitCast(@as(sys.O, .{ .WRONLY = true, .CREAT = true, .TRUNC = true }))), @as(u16, @bitCast(mode))));
+        }
+    }.creat
+else if (@hasField(sys.SYS, "creat"))
+    struct {
+        fn creat(path: [*:0]const u8, mode: sys.mode_t) sys.Result(sys.fd_t) {
+            return @bitCast(sys.syscall2(.creat, @intFromPtr(path), @as(u16, @bitCast(mode))));
+        }
+    }.creat
+else
+    sys.missing_feature;
+
+pub const getdents = if (hasFeature(.getdirentries))
+    struct {
+        const len_t = @typeInfo(@TypeOf(getdirentries)).Fn.params[2].type.?;
+
+        fn getdents(fd: sys.fd_t, buf: [*]u8, len: len_t) sys.Result(isize) {
+            return getdirentries(fd, buf, len, null);
+        }
+    }.getdents
+else
+    sys.missing_feature;
+
+pub const getdirentries = if (@hasField(sys.SYS, "getdirentries_k12"))
+    struct {
+        fn getdirentries(fd: sys.fd_t, buf: [*]u8, len: usize, basep: ?*sys.off_t) sys.Result(isize) {
+            return @bitCast(sys.syscall4(.getdirentries_k12, @as(u32, @bitCast(fd)), @intFromPtr(buf), len, @intFromPtr(basep)));
+        }
+    }.getdirentries
+else if (@hasField(sys.SYS, "getdirentries_k3"))
+    struct {
+        fn getdirentries(fd: sys.fd_t, buf: [*]u8, len: c_uint, basep: ?*c_long) sys.Result(c_int) {
+            return @bitCast(sys.syscall4(.getdirentries_k3, @as(u32, @bitCast(fd)), @intFromPtr(buf), len, @intFromPtr(basep)));
+        }
+    }.getdirentries
+else if (@hasField(sys.SYS, "getdirentries"))
+    struct {
+        fn getdirentries(fd: sys.fd_t, buf: [*]u8, len: c_uint, basep: ?*c_long) sys.Result(c_int) {
+            return @bitCast(sys.syscall4(.getdirentries, @as(u32, @bitCast(fd)), @intFromPtr(buf), len, @intFromPtr(basep)));
+        }
+    }.getdirentries
 else
     sys.missing_feature;
 
@@ -104,10 +158,10 @@ pub const mkdirat = if (@hasField(sys.SYS, "mkdirat"))
 else
     sys.missing_feature;
 
-pub const open = if (@hasField(sys.SYS, "openat"))
+pub const open = if (hasFeature(.openat))
     struct {
         fn open(path: [*:0]const u8, flags: sys.O, mode: sys.mode_t) sys.Result(sys.fd_t) {
-            return @bitCast(sys.syscall4(.openat, @as(u32, @bitCast(sys.AT.FDCWD)), @intFromPtr(path), @as(u32, @bitCast(flags)), @as(u16, @bitCast(mode))));
+            return openat(sys.AT.FDCWD, path, flags, mode);
         }
     }.open
 else if (@hasField(sys.SYS, "open"))
@@ -125,6 +179,15 @@ pub const openat = if (@hasField(sys.SYS, "openat"))
             return @bitCast(sys.syscall4(.openat, @as(u32, @bitCast(fd)), @intFromPtr(path), @as(u32, @bitCast(flags)), @as(u16, @bitCast(mode))));
         }
     }.openat
+else
+    sys.missing_feature;
+
+pub const read = if (@hasField(sys.SYS, "read"))
+    struct {
+        fn read(fd: sys.fd_t, buf: [*]u8, len: usize) sys.Result(isize) {
+            return @bitCast(sys.syscall3(.read, @as(u32, @bitCast(fd)), @intFromPtr(buf), len));
+        }
+    }.read
 else
     sys.missing_feature;
 
@@ -161,6 +224,15 @@ pub const setegid = if (@hasField(sys.SYS, "setegid"))
             return @bitCast(sys.syscall1(.setegid, gid));
         }
     }.setegid
+else
+    sys.missing_feature;
+
+pub const write = if (@hasField(sys.SYS, "write"))
+    struct {
+        fn write(fd: sys.fd_t, buf: [*]const u8, len: usize) sys.Result(isize) {
+            return @bitCast(sys.syscall3(.write, @as(u32, @bitCast(fd)), @intFromPtr(buf), len));
+        }
+    }.write
 else
     sys.missing_feature;
 
@@ -273,6 +345,8 @@ pub const E = enum(c_int) {
 
 pub const fd_t = c_int;
 pub const gid_t = u32;
+pub const ino_t = usize;
+pub const off_t = isize;
 pub const pid_t = i32;
 pub const uid_t = u32;
 
@@ -322,6 +396,24 @@ pub const O = packed struct(u32) {
 
     _: u6 = 0,
     // zig fmt: on
+};
+
+pub const dirent_t = extern struct {
+    fileno: sys.ino_t,
+    off: sys.off_t,
+    reclen: u16,
+    type: u8,
+    pad0: u8,
+    namlen: u16,
+    pad1: u16,
+    name: [255 + 1]u8,
+
+    comptime {
+        const size = 280;
+        if (@sizeOf(@This()) != size) {
+            @compileError(std.fmt.comptimePrint("expected size {d} bytes, found {d}", .{ size, @sizeOf(@This()) }));
+        }
+    }
 };
 
 pub const mode_t = packed struct(u16) {
