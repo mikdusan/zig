@@ -39,16 +39,16 @@ pub const close = if (@hasField(sys.SYS, "close"))
 else
     sys.missing_feature;
 
-pub const creat = if (@hasField(sys.SYS, "openat"))
+pub const creat = if (hasFeature(.openat))
     struct {
         fn creat(path: [*:0]const u8, mode: sys.mode_t) sys.Result(sys.fd_t) {
-            return @bitCast(sys.syscall4(.openat, @as(u32, @bitCast(sys.AT.FDCWD)), @intFromPtr(path), @as(u32, @bitCast(@as(sys.O, .{ .WRONLY = true, .CREAT = true, .TRUNC = true }))), @as(u16, @bitCast(mode))));
+            return openat(sys.AT.FDCWD, path, .{ .WRONLY = true, .CREAT = true, .TRUNC = true }, mode);
         }
     }.creat
-else if (@hasField(sys.SYS, "creat"))
+else if (hasFeature(.open))
     struct {
         fn creat(path: [*:0]const u8, mode: sys.mode_t) sys.Result(sys.fd_t) {
-            return @bitCast(sys.syscall2(.creat, @intFromPtr(path), @as(u16, @bitCast(mode))));
+            return open(path, .{ .WRONLY = true, .CREAT = true, .TRUNC = true }, mode);
         }
     }.creat
 else
