@@ -262,41 +262,23 @@ fn Test(NS: type) type {
         }
 
         fn expectError(expected_error_sentinel: anytype, expected_ecode: NS.E, rv: anytype) !void {
-            if (NS == sys) {
-                if (!rv.eflag.present) {
-                    print("expected {s}, found no error\n", .{ @tagName(expected_ecode) });
-                    return error.TestExpectedSrNoError;
-                }
-                if (rv.ecode != expected_ecode) {
-                    print("expected {s}, found {s}\n", .{ @tagName(expected_ecode), @tagName(rv.ecode) });
-                    return error.TestExpectedSrNoError;
-                }
-            } else {
-                if (rv != expected_error_sentinel) {
-                    print("expected error sentinel {}, found {}\n", .{ expected_error_sentinel, rv });
-                    return error.TestExpectedSrNoError;
-                }
+            if (rv != expected_error_sentinel) {
+                print("expected error sentinel {}, found {}\n", .{ expected_error_sentinel, rv });
+                return error.TestExpectedError;
+            }
+            const ec = NS.errno();
+            if (ec != expected_ecode) {
+                print("expected error {}, found {}\n", .{ expected_ecode, ec });
+                return error.TestExpectedError;
             }
         }
 
-        fn expectNoError(unexpected_error_sentinel: anytype, rv: anytype) !ResultType(@TypeOf(rv)) {
-            if (NS == sys) {
-                if (rv.eflag.present) {
-                    print("expected no error, found {s}\n", .{ @tagName(rv.ecode) });
-                    return error.TestExpectedNoError;
-                }
-                return rv.value;
-            } else {
-                if (rv == unexpected_error_sentinel) {
-                    print("expected no error, found {} and errno={s}", .{ unexpected_error_sentinel, @tagName(c.errno()) });
-                    return error.TestExpectedNoError;
-                }
-                return rv;
+        fn expectNoError(unexpected_error_sentinel: anytype, rv: anytype) !@TypeOf(rv) {
+            if (rv == unexpected_error_sentinel) {
+                print("expected no error sentinel, found {} and errno={s}\n", .{ unexpected_error_sentinel, @tagName(NS.errno()) });
+                return error.TestExpectedNoError;
             }
-        }
-
-        fn ResultType(T: type) type {
-            return if (NS == sys) T.Type else T;
+            return rv;
         }
     };
 }

@@ -8,7 +8,6 @@ const builtin = @import("builtin");
 const c = std.os.freebsd.c;
 const sys = std.os.freebsd.sys;
 
-pub extern "c" fn __error() *c.E;
 pub extern "c" fn close(fd: c.fd_t) c_int;
 pub extern "c" fn creat(path: [*:0]const u8, mode: c.mode_t) c.fd_t;
 pub extern "c" fn getdents(fd: c.fd_t, buf: [*]u8, len: usize) isize;
@@ -29,9 +28,7 @@ pub extern "c" fn setgid(gid: c.gid_t) c_int;
 pub extern "c" fn setuid(uid: c.uid_t) c_int;
 pub extern "c" fn write(fd: c.fd_t, buf: [*]const u8, len: usize) isize;
 
-pub fn errno() c.E {
-    return __error().*;
-}
+pub const errno = sys.errno;
 
 pub const getdirentries = switch (sys.osintver) {
     12_000_000 => struct {

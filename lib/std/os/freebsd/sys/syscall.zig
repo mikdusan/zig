@@ -559,58 +559,81 @@ const sys_tab_num_max = b: {
 };
 
 pub fn syscall0(number: SYS) usize {
-    return asm volatile (
+    const result = asm volatile (
         \\ movq %%rcx, %%r10
         \\ syscall
-        \\ jnc 0f
-        \\ movabsq $0xf000000000000000, %%rdi
-        \\ orq %%rdi, %%rax
-        \\ 0:
         : [ret] "={rax}" (-> usize),
         : [number] "{rax}" (@intFromEnum(number)),
         : "rdi", "rsi", "rdx", "rcx", "r8", "r9", "r10", "r11", "cc", "memory"
     );
+    if (asm volatile (
+        \\ jc 0f
+        \\ movq $0, %%rax
+        \\ jmp 1f
+        \\ 0:
+        \\ movq $1, %%rax
+        \\ 1:
+        : [ret] "={rax}" (-> usize),
+    ) == 1) {
+        sys.__error().* = @enumFromInt(result);
+        return @bitCast(@as(isize, -1));
+    }
+    return result;
 }
 
 pub fn syscall1(number: SYS, arg1: usize) usize {
-    return asm volatile (
+    const result = asm volatile (
         \\ movq %%rcx, %%r10
         \\ syscall
-        \\ jnc 0f
-        \\ movabsq $0xf000000000000000, %%rdi
-        \\ orq %%rdi, %%rax
-        \\ 0:
         : [ret] "={rax}" (-> usize),
         : [number] "{rax}" (@intFromEnum(number)),
           [arg1] "{rdi}" (arg1),
         : "rsi", "rdx", "rcx", "r8", "r9", "r10", "r11", "cc", "memory"
     );
+    if (asm volatile (
+        \\ jc 0f
+        \\ movq $0, %%rax
+        \\ jmp 1f
+        \\ 0:
+        \\ movq $1, %%rax
+        \\ 1:
+        : [ret] "={rax}" (-> usize),
+    ) == 1) {
+        sys.__error().* = @enumFromInt(result);
+        return @bitCast(@as(isize, -1));
+    }
+    return result;
 }
 
 pub fn syscall2(number: SYS, arg1: usize, arg2: usize) usize {
-    return asm volatile (
+    const result = asm volatile (
         \\ movq %%rcx, %%r10
         \\ syscall
-        \\ jnc 0f
-        \\ movabsq $0xf000000000000000, %%rdi
-        \\ orq %%rdi, %%rax
-        \\ 0:
         : [ret] "={rax}" (-> usize),
         : [number] "{rax}" (@intFromEnum(number)),
           [arg1] "{rdi}" (arg1),
           [arg2] "{rsi}" (arg2),
         : "rdx", "rcx", "r8", "r9", "r10", "r11", "cc", "memory"
     );
+    if (asm volatile (
+        \\ jc 0f
+        \\ movq $0, %%rax
+        \\ jmp 1f
+        \\ 0:
+        \\ movq $1, %%rax
+        \\ 1:
+        : [ret] "={rax}" (-> usize),
+    ) == 1) {
+        sys.__error().* = @enumFromInt(result);
+        return @bitCast(@as(isize, -1));
+    }
+    return result;
 }
 
 pub fn syscall3(number: SYS, arg1: usize, arg2: usize, arg3: usize) usize {
-    return asm volatile (
+    const result = asm volatile (
         \\ movq %%rcx, %%r10
         \\ syscall
-        \\ jnc 0f
-        \\ movabsq $0xf000000000000000, %%rdi
-        \\ orq %%rdi, %%rax
-        \\ 0:
         : [ret] "={rax}" (-> usize),
         : [number] "{rax}" (@intFromEnum(number)),
           [arg1] "{rdi}" (arg1),
@@ -618,16 +641,25 @@ pub fn syscall3(number: SYS, arg1: usize, arg2: usize, arg3: usize) usize {
           [arg3] "{rdx}" (arg3),
         : "rcx", "r8", "r9", "r10", "r11", "cc", "memory"
     );
+    if (asm volatile (
+        \\ jc 0f
+        \\ movq $0, %%rax
+        \\ jmp 1f
+        \\ 0:
+        \\ movq $1, %%rax
+        \\ 1:
+        : [ret] "={rax}" (-> usize),
+    ) == 1) {
+        sys.__error().* = @enumFromInt(result);
+        return @bitCast(@as(isize, -1));
+    }
+    return result;
 }
 
 pub fn syscall4(number: SYS, arg1: usize, arg2: usize, arg3: usize, arg4: usize) usize {
-    return asm volatile (
+    const result = asm volatile (
         \\ movq %%rcx, %%r10
         \\ syscall
-        \\ jnc 0f
-        \\ movabsq $0xf000000000000000, %%rdi
-        \\ orq %%rdi, %%rax
-        \\ 0:
         : [ret] "={rax}" (-> usize),
         : [number] "{rax}" (@intFromEnum(number)),
           [arg1] "{rdi}" (arg1),
@@ -636,16 +668,25 @@ pub fn syscall4(number: SYS, arg1: usize, arg2: usize, arg3: usize, arg4: usize)
           [arg4] "{rcx}" (arg4),
         : "r8", "r9", "r10", "r11", "cc", "memory"
     );
+    if (asm volatile (
+        \\ jc 0f
+        \\ movq $0, %%rax
+        \\ jmp 1f
+        \\ 0:
+        \\ movq $1, %%rax
+        \\ 1:
+        : [ret] "={rax}" (-> usize),
+    ) == 1) {
+        sys.__error().* = @enumFromInt(result);
+        return @bitCast(@as(isize, -1));
+    }
+    return result;
 }
 
 pub fn syscall5(number: SYS, arg1: usize, arg2: usize, arg3: usize, arg4: usize, arg5: usize) usize {
-    return asm volatile (
+    const result = asm volatile (
         \\ movq %%rcx, %%r10
         \\ syscall
-        \\ jnc 0f
-        \\ movabsq $0xf000000000000000, %%rdi
-        \\ orq %%rdi, %%rax
-        \\ 0:
         : [ret] "={rax}" (-> usize),
         : [number] "{rax}" (@intFromEnum(number)),
           [arg1] "{rdi}" (arg1),
@@ -655,16 +696,25 @@ pub fn syscall5(number: SYS, arg1: usize, arg2: usize, arg3: usize, arg4: usize,
           [arg5] "{r8}" (arg5),
         : "r9", "r10", "r11", "cc", "memory"
     );
+    if (asm volatile (
+        \\ jc 0f
+        \\ movq $0, %%rax
+        \\ jmp 1f
+        \\ 0:
+        \\ movq $1, %%rax
+        \\ 1:
+        : [ret] "={rax}" (-> usize),
+    ) == 1) {
+        sys.__error().* = @enumFromInt(result);
+        return @bitCast(@as(isize, -1));
+    }
+    return result;
 }
 
 pub fn syscall6(number: SYS, arg1: usize, arg2: usize, arg3: usize, arg4: usize, arg5: usize, arg6: usize) usize {
-    return asm volatile (
+    const result = asm volatile (
         \\ movq %%rcx, %%r10
         \\ syscall
-        \\ jnc 0f
-        \\ movabsq $0xf000000000000000, %%rdi
-        \\ orq %%rdi, %%rax
-        \\ 0:
         : [ret] "={rax}" (-> usize),
         : [number] "{rax}" (@intFromEnum(number)),
           [arg1] "{rdi}" (arg1),
@@ -675,6 +725,19 @@ pub fn syscall6(number: SYS, arg1: usize, arg2: usize, arg3: usize, arg4: usize,
           [arg6] "{r9}" (arg6),
         : "r10", "r11", "cc", "memory"
     );
+    if (asm volatile (
+        \\ jc 0f
+        \\ movq $0, %%rax
+        \\ jmp 1f
+        \\ 0:
+        \\ movq $1, %%rax
+        \\ 1:
+        : [ret] "={rax}" (-> usize),
+    ) == 1) {
+        sys.__error().* = @enumFromInt(result);
+        return @bitCast(@as(isize, -1));
+    }
+    return result;
 }
 
 pub fn Result(T: type) type {

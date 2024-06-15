@@ -29,8 +29,10 @@ pub const osintver = b: {
     break :b sv.major * 1_000_000 + sv.minor * 1_000 + sv.patch;
 };
 
-pub const __error = if (builtin.has_libc)
-    std.os.freebsd.c.__error
+pub const __error = if (builtin.link_libc)
+    struct {
+        extern "c" fn __error() *sys.E;
+    }.__error
 else
     struct {
         fn __error() *sys.E {
@@ -40,10 +42,15 @@ else
 
 threadlocal var __error_value: sys.E = 0;
 
+pub fn errno() sys.E {
+    return sys.__error().*;
+}
+
 pub const close = if (@hasField(sys.SYS, "close"))
     struct {
-        fn close(fd: sys.fd_t) sys.Result(sys.fd_t) {
-            return @bitCast(sys.syscall1(.close, @as(u32, @bitCast(fd))));
+        fn close(fd: sys.fd_t) c_int {
+            const rv = sys.syscall1(.close, @as(u32, @bitCast(fd)));
+            return @bitCast(@as(u32, @truncate(rv)));
         }
     }.close
 else
@@ -51,13 +58,13 @@ else
 
 pub const creat = if (hasFeature(.openat))
     struct {
-        fn creat(path: [*:0]const u8, mode: sys.mode_t) sys.Result(sys.fd_t) {
+        fn creat(path: [*:0]const u8, mode: sys.mode_t) sys.fd_t {
             return openat(sys.AT.FDCWD, path, .{ .WRONLY = true, .CREAT = true, .TRUNC = true }, mode);
         }
     }.creat
 else if (hasFeature(.open))
     struct {
-        fn creat(path: [*:0]const u8, mode: sys.mode_t) sys.Result(sys.fd_t) {
+        fn creat(path: [*:0]const u8, mode: sys.mode_t) sys.fd_t {
             return open(path, .{ .WRONLY = true, .CREAT = true, .TRUNC = true }, mode);
         }
     }.creat
@@ -68,65 +75,52 @@ pub const getdents = if (hasFeature(.getdirentries))
     struct {
         const len_t = @typeInfo(@TypeOf(getdirentries)).Fn.params[2].type.?;
 
-        fn getdents(fd: sys.fd_t, buf: [*]u8, len: len_t) sys.Result(isize) {
+        fn getdents(fd: sys.fd_t, buf: [*]u8, len: len_t) isize {
             return getdirentries(fd, buf, len, null);
         }
     }.getdents
 else
     sys.missing_feature;
 
-pub const getdirentries = if (@hasField(sys.SYS, "getdirentries_k12"))
+pub const getdirentries = if (@hasField(sys.SYS, "getdirentries@12"))
     struct {
-        fn getdirentries(fd: sys.fd_t, buf: [*]u8, len: usize, basep: ?*sys.off_t) sys.Result(isize) {
-            return @bitCast(sys.syscall4(.getdirentries_k12, @as(u32, @bitCast(fd)), @intFromPtr(buf), len, @intFromPtr(basep)));
+        fn getdirentries(fd: sys.fd_t, buf: [*]u8, len: usize, basep: ?*sys.off_t) isize {
+            const rv = sys.syscall4(.@"getdirentries@12", @as(u32, @bitCast(fd)), @intFromPtr(buf), len, @intFromPtr(basep));
+            return @bitCast(rv);
         }
     }.getdirentries
-else if (@hasField(sys.SYS, "getdirentries_k3"))
+else if (@hasField(sys.SYS, "getdirentries@2"))
     struct {
-        fn getdirentries(fd: sys.fd_t, buf: [*]u8, len: c_uint, basep: ?*c_long) sys.Result(c_int) {
-            return @bitCast(sys.syscall4(.getdirentries_k3, @as(u32, @bitCast(fd)), @intFromPtr(buf), len, @intFromPtr(basep)));
+        fn getdirentries(fd: sys.fd_t, buf: [*]u8, len: c_uint, basep: ?*c_long) c_int {
+            const rv = sys.syscall4(.@"getdirentries@3", @as(u32, @bitCast(fd)), @intFromPtr(buf), len, @intFromPtr(basep));
+            return @bitCast(@as(u32, @truncate(rv)));
         }
     }.getdirentries
-else if (@hasField(sys.SYS, "getdirentries"))
+else if (@hasField(sys.SYS, "getdirentries@1"))
     struct {
-        fn getdirentries(fd: sys.fd_t, buf: [*]u8, len: c_uint, basep: ?*c_long) sys.Result(c_int) {
-            return @bitCast(sys.syscall4(.getdirentries, @as(u32, @bitCast(fd)), @intFromPtr(buf), len, @intFromPtr(basep)));
+        fn getdirentries(fd: sys.fd_t, buf: [*]u8, len: c_uint, basep: ?*c_long) c_int {
+            const rv = sys.syscall4(.@"getdirentries@1", @as(u32, @bitCast(fd)), @intFromPtr(buf), len, @intFromPtr(basep));
+            return @bitCast(@as(u32, @truncate(rv)));
         }
     }.getdirentries
 else
     sys.missing_feature;
 
-pub const getpid = if (@hasField(sys.SYS, "getpid"))
+pub const getegid = if (@hasField(sys.SYS, "getegid"))
     struct {
-        fn getpid() sys.Result(sys.pid_t) {
-            return @bitCast(sys.syscall0(.getpid));
+        fn getegid() sys.gid_t {
+            const rv = sys.syscall0(.getegid);
+            return @truncate(rv);
         }
-    }.getpid
-else
-    sys.missing_feature;
-
-pub const getppid = if (@hasField(sys.SYS, "getppid"))
-    struct {
-        fn getppid() sys.Result(sys.pid_t) {
-            return @bitCast(sys.syscall0(.getppid));
-        }
-    }.getppid
-else
-    sys.missing_feature;
-
-pub const getuid = if (@hasField(sys.SYS, "getuid"))
-    struct {
-        fn getuid() sys.Result(sys.uid_t) {
-            return @bitCast(sys.syscall0(.getuid));
-        }
-    }.getuid
+    }.getegid
 else
     sys.missing_feature;
 
 pub const geteuid = if (@hasField(sys.SYS, "geteuid"))
     struct {
-        fn geteuid() sys.Result(sys.uid_t) {
-            return @bitCast(sys.syscall0(.geteuid));
+        fn geteuid() sys.uid_t {
+            const rv = sys.syscall0(.geteuid);
+            return @truncate(rv);
         }
     }.geteuid
 else
@@ -134,26 +128,49 @@ else
 
 pub const getgid = if (@hasField(sys.SYS, "getgid"))
     struct {
-        fn getgid() sys.Result(sys.gid_t) {
-            return @bitCast(sys.syscall0(.getgid));
+        fn getgid() sys.gid_t {
+            const rv = sys.syscall0(.getgid);
+            return @truncate(rv);
         }
     }.getgid
 else
     sys.missing_feature;
 
-pub const getegid = if (@hasField(sys.SYS, "getegid"))
+pub const getpid = if (@hasField(sys.SYS, "getpid"))
     struct {
-        fn getegid() sys.Result(sys.gid_t) {
-            return @bitCast(sys.syscall0(.getegid));
+        fn getpid() sys.pid_t {
+            const rv = sys.syscall0(.getpid);
+            return @bitCast(@as(u32, @truncate(rv)));
         }
-    }.getegid
+    }.getpid
+else
+    sys.missing_feature;
+
+pub const getppid = if (@hasField(sys.SYS, "getppid"))
+    struct {
+        fn getppid() sys.pid_t {
+            const rv = sys.syscall0(.getppid);
+            return @bitCast(@as(u32, @truncate(rv)));
+        }
+    }.getppid
+else
+    sys.missing_feature;
+
+pub const getuid = if (@hasField(sys.SYS, "getuid"))
+    struct {
+        fn getuid() sys.uid_t {
+            const rv = sys.syscall0(.getuid);
+            return @truncate(rv);
+        }
+    }.getuid
 else
     sys.missing_feature;
 
 pub const mkdir = if (@hasField(sys.SYS, "mkdir"))
     struct {
-        fn mkdir(path: [*:0]const u8, mode: sys.mode_t) sys.Result(void) {
-            return @bitCast(sys.syscall2(.mkdir, @intFromPtr(path), @as(u16, @bitCast(mode))));
+        fn mkdir(path: [*:0]const u8, mode: sys.mode_t) c_int {
+            const rv = sys.syscall2(.mkdir, @intFromPtr(path), @as(u16, @bitCast(mode)));
+            return @bitCast(@as(u32, @truncate(rv)));
         }
     }.mkdir
 else
@@ -161,8 +178,9 @@ else
 
 pub const mkdirat = if (@hasField(sys.SYS, "mkdirat"))
     struct {
-        fn mkdirat(fd: sys.fd_t, path: [*:0]const u8, mode: sys.mode_t) sys.Result(void) {
-            return @bitCast(sys.syscall3(.mkdirat, @as(u32, @bitCast(fd)), @intFromPtr(path), @as(u16, @bitCast(mode))));
+        fn mkdirat(fd: sys.fd_t, path: [*:0]const u8, mode: sys.mode_t) c_int {
+            const rv = sys.syscall3(.mkdirat, @as(u32, @bitCast(fd)), @intFromPtr(path), @as(u16, @bitCast(mode)));
+            return @bitCast(@as(u32, @truncate(rv)));
         }
     }.mkdirat
 else
@@ -170,14 +188,15 @@ else
 
 pub const open = if (hasFeature(.openat))
     struct {
-        fn open(path: [*:0]const u8, flags: sys.O, mode: sys.mode_t) sys.Result(sys.fd_t) {
+        fn open(path: [*:0]const u8, flags: sys.O, mode: sys.mode_t) sys.fd_t {
             return openat(sys.AT.FDCWD, path, flags, mode);
         }
     }.open
 else if (@hasField(sys.SYS, "open"))
     struct {
-        fn open(path: [*:0]const u8, flags: sys.O, mode: sys.mode_t) sys.Result(sys.fd_t) {
-            return @bitCast(sys.syscall3(.open, @intFromPtr(path), @as(u32, @bitCast(flags)), @as(u16, @bitCast(mode))));
+        fn open(path: [*:0]const u8, flags: sys.O, mode: sys.mode_t) sys.fd_t {
+            const rv = sys.syscall3(.open, @intFromPtr(path), @as(u32, @bitCast(flags)), @as(u16, @bitCast(mode)));
+            return @bitCast(@as(u32, @truncate(rv)));
         }
     }.open
 else
@@ -185,8 +204,9 @@ else
 
 pub const openat = if (@hasField(sys.SYS, "openat"))
     struct {
-        fn openat(fd: sys.fd_t, path: [*:0]const u8, flags: sys.O, mode: sys.mode_t) sys.Result(sys.fd_t) {
-            return @bitCast(sys.syscall4(.openat, @as(u32, @bitCast(fd)), @intFromPtr(path), @as(u32, @bitCast(flags)), @as(u16, @bitCast(mode))));
+        fn openat(fd: sys.fd_t, path: [*:0]const u8, flags: sys.O, mode: sys.mode_t) sys.fd_t {
+            const rv = sys.syscall4(.openat, @as(u32, @bitCast(fd)), @intFromPtr(path), @as(u32, @bitCast(flags)), @as(u16, @bitCast(mode)));
+            return @bitCast(@as(u32, @truncate(rv)));
         }
     }.openat
 else
@@ -194,26 +214,29 @@ else
 
 pub const read = if (@hasField(sys.SYS, "read"))
     struct {
-        fn read(fd: sys.fd_t, buf: [*]u8, len: usize) sys.Result(isize) {
-            return @bitCast(sys.syscall3(.read, @as(u32, @bitCast(fd)), @intFromPtr(buf), len));
+        fn read(fd: sys.fd_t, buf: [*]u8, len: usize) isize {
+            const rv = sys.syscall3(.read, @as(u32, @bitCast(fd)), @intFromPtr(buf), len);
+            return @bitCast(rv);
         }
     }.read
 else
     sys.missing_feature;
 
-pub const setuid = if (@hasField(sys.SYS, "setuid"))
+pub const setegid = if (@hasField(sys.SYS, "setegid"))
     struct {
-        fn setuid(uid: sys.uid_t) sys.Result(void) {
-            return @bitCast(sys.syscall1(.setuid, uid));
+        fn setegid(gid: sys.gid_t) c_int {
+            const rv = sys.syscall1(.setegid, gid);
+            return @bitCast(@as(u32, @truncate(rv)));
         }
-    }.setuid
+    }.setegid
 else
     sys.missing_feature;
 
 pub const seteuid = if (@hasField(sys.SYS, "seteuid"))
     struct {
-        fn seteuid(uid: sys.uid_t) sys.Result(void) {
-            return @bitCast(sys.syscall1(.seteuid, uid));
+        fn seteuid(uid: sys.uid_t) c_int {
+            const rv = sys.syscall1(.seteuid, uid);
+            return @bitCast(@as(u32, @truncate(rv)));
         }
     }.seteuid
 else
@@ -221,26 +244,29 @@ else
 
 pub const setgid = if (@hasField(sys.SYS, "setgid"))
     struct {
-        fn setgid(gid: sys.gid_t) sys.Result(void) {
-            return @bitCast(sys.syscall1(.setgid, gid));
+        fn setgid(gid: sys.gid_t) c_int {
+            const rv = sys.syscall1(.setgid, gid);
+            return @bitCast(@as(u32, @truncate(rv)));
         }
     }.setgid
 else
     sys.missing_feature;
 
-pub const setegid = if (@hasField(sys.SYS, "setegid"))
+pub const setuid = if (@hasField(sys.SYS, "setuid"))
     struct {
-        fn setegid(gid: sys.gid_t) sys.Result(void) {
-            return @bitCast(sys.syscall1(.setegid, gid));
+        fn setuid(uid: sys.uid_t) c_int {
+            const rv = sys.syscall1(.setuid, uid);
+            return @bitCast(@as(u32, @truncate(rv)));
         }
-    }.setegid
+    }.setuid
 else
     sys.missing_feature;
 
 pub const write = if (@hasField(sys.SYS, "write"))
     struct {
-        fn write(fd: sys.fd_t, buf: [*]const u8, len: usize) sys.Result(isize) {
-            return @bitCast(sys.syscall3(.write, @as(u32, @bitCast(fd)), @intFromPtr(buf), len));
+        fn write(fd: sys.fd_t, buf: [*]const u8, len: usize) isize {
+            const rv = sys.syscall3(.write, @as(u32, @bitCast(fd)), @intFromPtr(buf), len);
+            return @bitCast(rv);
         }
     }.write
 else
