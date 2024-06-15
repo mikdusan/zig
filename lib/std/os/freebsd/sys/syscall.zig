@@ -563,8 +563,7 @@ pub fn syscall0(number: SYS) usize {
         \\ movq %%rcx, %%r10
         \\ syscall
         \\ jnc 0f
-        \\ movq $1, %%rdi
-        \\ shlq $63, %%rdi
+        \\ movabsq $0xf000000000000000, %%rdi
         \\ orq %%rdi, %%rax
         \\ 0:
         : [ret] "={rax}" (-> usize),
@@ -578,14 +577,13 @@ pub fn syscall1(number: SYS, arg1: usize) usize {
         \\ movq %%rcx, %%r10
         \\ syscall
         \\ jnc 0f
-        \\ movq $1, %%rdi
-        \\ shlq $63, %%rdi
+        \\ movabsq $0xf000000000000000, %%rdi
         \\ orq %%rdi, %%rax
         \\ 0:
         : [ret] "={rax}" (-> usize),
         : [number] "{rax}" (@intFromEnum(number)),
           [arg1] "{rdi}" (arg1),
-        : "rdi", "rsi", "rdx", "rcx", "r8", "r9", "r10", "r11", "cc", "memory"
+        : "rsi", "rdx", "rcx", "r8", "r9", "r10", "r11", "cc", "memory"
     );
 }
 
@@ -594,15 +592,14 @@ pub fn syscall2(number: SYS, arg1: usize, arg2: usize) usize {
         \\ movq %%rcx, %%r10
         \\ syscall
         \\ jnc 0f
-        \\ movq $1, %%rdi
-        \\ shlq $63, %%rdi
+        \\ movabsq $0xf000000000000000, %%rdi
         \\ orq %%rdi, %%rax
         \\ 0:
         : [ret] "={rax}" (-> usize),
         : [number] "{rax}" (@intFromEnum(number)),
           [arg1] "{rdi}" (arg1),
           [arg2] "{rsi}" (arg2),
-        : "rdi", "rdx", "rcx", "r8", "r9", "r10", "r11", "cc", "memory"
+        : "rdx", "rcx", "r8", "r9", "r10", "r11", "cc", "memory"
     );
 }
 
@@ -611,8 +608,7 @@ pub fn syscall3(number: SYS, arg1: usize, arg2: usize, arg3: usize) usize {
         \\ movq %%rcx, %%r10
         \\ syscall
         \\ jnc 0f
-        \\ movq $1, %%rdi
-        \\ shlq $63, %%rdi
+        \\ movabsq $0xf000000000000000, %%rdi
         \\ orq %%rdi, %%rax
         \\ 0:
         : [ret] "={rax}" (-> usize),
@@ -620,7 +616,7 @@ pub fn syscall3(number: SYS, arg1: usize, arg2: usize, arg3: usize) usize {
           [arg1] "{rdi}" (arg1),
           [arg2] "{rsi}" (arg2),
           [arg3] "{rdx}" (arg3),
-        : "rdi", "rcx", "r8", "r9", "r10", "r11", "cc", "memory"
+        : "rcx", "r8", "r9", "r10", "r11", "cc", "memory"
     );
 }
 
@@ -629,8 +625,7 @@ pub fn syscall4(number: SYS, arg1: usize, arg2: usize, arg3: usize, arg4: usize)
         \\ movq %%rcx, %%r10
         \\ syscall
         \\ jnc 0f
-        \\ movq $1, %%rdi
-        \\ shlq $63, %%rdi
+        \\ movabsq $0xf000000000000000, %%rdi
         \\ orq %%rdi, %%rax
         \\ 0:
         : [ret] "={rax}" (-> usize),
@@ -639,7 +634,7 @@ pub fn syscall4(number: SYS, arg1: usize, arg2: usize, arg3: usize, arg4: usize)
           [arg2] "{rsi}" (arg2),
           [arg3] "{rdx}" (arg3),
           [arg4] "{rcx}" (arg4),
-        : "rdi", "r8", "r9", "r10", "r11", "cc", "memory"
+        : "r8", "r9", "r10", "r11", "cc", "memory"
     );
 }
 
@@ -648,8 +643,7 @@ pub fn syscall5(number: SYS, arg1: usize, arg2: usize, arg3: usize, arg4: usize,
         \\ movq %%rcx, %%r10
         \\ syscall
         \\ jnc 0f
-        \\ movq $1, %%rdi
-        \\ shlq $63, %%rdi
+        \\ movabsq $0xf000000000000000, %%rdi
         \\ orq %%rdi, %%rax
         \\ 0:
         : [ret] "={rax}" (-> usize),
@@ -659,7 +653,7 @@ pub fn syscall5(number: SYS, arg1: usize, arg2: usize, arg3: usize, arg4: usize,
           [arg3] "{rdx}" (arg3),
           [arg4] "{rcx}" (arg4),
           [arg5] "{r8}" (arg5),
-        : "rdi", "r9", "r10", "r11", "cc", "memory"
+        : "r9", "r10", "r11", "cc", "memory"
     );
 }
 
@@ -668,8 +662,7 @@ pub fn syscall6(number: SYS, arg1: usize, arg2: usize, arg3: usize, arg4: usize,
         \\ movq %%rcx, %%r10
         \\ syscall
         \\ jnc 0f
-        \\ movq $1, %%rdi
-        \\ shlq $63, %%rdi
+        \\ movabsq $0xf000000000000000, %%rdi
         \\ orq %%rdi, %%rax
         \\ 0:
         : [ret] "={rax}" (-> usize),
@@ -680,7 +673,7 @@ pub fn syscall6(number: SYS, arg1: usize, arg2: usize, arg3: usize, arg4: usize,
           [arg4] "{rcx}" (arg4),
           [arg5] "{r8}" (arg5),
           [arg6] "{r9}" (arg6),
-        : "rdi", "r10", "r11", "cc", "memory"
+        : "r10", "r11", "cc", "memory"
     );
 }
 
