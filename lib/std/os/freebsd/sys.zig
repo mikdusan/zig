@@ -1,7 +1,6 @@
 //! This file provides the system interface to FreeBSD, matching
 //! those that are provided by system libc, whether or not libc
 //! is linked. The following abstractions are made:
-//!
 //! * Work around kernel bugs and limitations.
 //! * Implement syscalls in the same way that libc functions;
 //!   e.g. `open` uses the `openat` call when available.
@@ -29,6 +28,17 @@ pub const osintver = b: {
     const sv = builtin.os.version_range.semver.min;
     break :b sv.major * 1_000_000 + sv.minor * 1_000 + sv.patch;
 };
+
+pub const __error = if (builtin.has_libc)
+    std.os.freebsd.c.__error
+else
+    struct {
+        fn __error() *sys.E {
+            return &__error_value;
+        }
+    }.__error;
+
+threadlocal var __error_value: sys.E = 0;
 
 pub const close = if (@hasField(sys.SYS, "close"))
     struct {
