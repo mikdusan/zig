@@ -18,11 +18,10 @@ fn Test(NS: type) type {
             var arena_s = std.heap.ArenaAllocator.init(testing.allocator);
             defer arena_s.deinit();
             const arena = arena_s.allocator();
-
             var tmp = try TmpDir.init(arena);
             defer tmp.cleanup();
-            const file_path = try std.fs.path.joinZ(arena, &.{ tmp.path, "close_me.txt" });
 
+            const file_path = try std.fs.path.joinZ(arena, &.{ tmp.path, "close_me.txt" });
             const fd = try expectNoError(-1, NS.open(file_path, .{ .CREAT = true }, NS.mode_t.default_file));
             _ = try expectNoError(-1, NS.close(fd));
             try expectError(-1, .BADF, NS.close(fd));
@@ -34,13 +33,15 @@ fn Test(NS: type) type {
             var arena_s = std.heap.ArenaAllocator.init(testing.allocator);
             defer arena_s.deinit();
             const arena = arena_s.allocator();
-
             var tmp = try TmpDir.init(arena);
             defer tmp.cleanup();
-            const file_path = try std.fs.path.joinZ(arena, &.{ tmp.path, "create_me.txt" });
 
+            const file_path = try std.fs.path.joinZ(arena, &.{ tmp.path, "create_me.txt" });
             const fd = try expectNoError(-1, NS.creat(file_path, NS.mode_t.default_file));
             _ = try expectNoError(-1, NS.close(fd));
+
+            const bogus_path = try std.fs.path.joinZ(arena, &.{ tmp.path, "bogus", "create_me.txt" });
+            try expectError(-1, .NOENT, NS.creat(bogus_path, NS.mode_t.default_file));
         }
 
         test "getdents" {
@@ -49,13 +50,11 @@ fn Test(NS: type) type {
             var arena_s = std.heap.ArenaAllocator.init(testing.allocator);
             defer arena_s.deinit();
             const arena = arena_s.allocator();
-
             var tmp = try TmpDir.init(arena);
             defer tmp.cleanup();
 
-            const file = try tmp.dir.createFile("small.txt", .{});
+            const file = try tmp.dir.createFile("empty.txt", .{});
             defer file.close();
-            try testing.expectEqual(4, try file.write("1234"));
 
             var buf: [1024]u8 = undefined;
             const len = try expectNoError(-1, NS.getdents(tmp.dir.fd, &buf, buf.len));
@@ -76,10 +75,12 @@ fn Test(NS: type) type {
                 switch (p.namlen) {
                     1 => try testing.expectEqualStrings(".", p.name[0..p.namlen]),
                     2 => try testing.expectEqualStrings("..", p.name[0..p.namlen]),
-                    9 => try testing.expectEqualStrings("small.txt", p.name[0..p.namlen]),
+                    9 => try testing.expectEqualStrings("empty.txt", p.name[0..p.namlen]),
                     else => {},
                 }
             }
+
+            try expectError(-1, .BADF, NS.getdents(file.handle, &buf, buf.len));
         }
 
         test "getdirentries" {
@@ -88,16 +89,14 @@ fn Test(NS: type) type {
             var arena_s = std.heap.ArenaAllocator.init(testing.allocator);
             defer arena_s.deinit();
             const arena = arena_s.allocator();
-
             var tmp = try TmpDir.init(arena);
             defer tmp.cleanup();
 
-            const file = try tmp.dir.createFile("small.txt", .{});
+            const file = try tmp.dir.createFile("empty.txt", .{});
             defer file.close();
-            try testing.expectEqual(4, try file.write("1234"));
 
             var buf: [1024]u8 = undefined;
-            const len = try expectNoError(-1, NS.getdirentries(tmp.dir.fd, @ptrCast(&buf), buf.len * @sizeOf(sys.dirent_t), null));
+            const len = try expectNoError(-1, NS.getdirentries(tmp.dir.fd, &buf, buf.len * @sizeOf(sys.dirent_t), null));
 
             var entries: [3]*const sys.dirent_t = undefined;
             var i: usize = 0;
@@ -115,10 +114,12 @@ fn Test(NS: type) type {
                 switch (p.namlen) {
                     1 => try testing.expectEqualStrings(".", p.name[0..p.namlen]),
                     2 => try testing.expectEqualStrings("..", p.name[0..p.namlen]),
-                    9 => try testing.expectEqualStrings("small.txt", p.name[0..p.namlen]),
+                    9 => try testing.expectEqualStrings("empty.txt", p.name[0..p.namlen]),
                     else => {},
                 }
             }
+
+            try expectError(-1, .BADF, NS.getdirentries(file.handle, &buf, buf.len * @sizeOf(sys.dirent_t), null));
         }
 
         test "getpid" {
@@ -163,12 +164,14 @@ fn Test(NS: type) type {
             var arena_s = std.heap.ArenaAllocator.init(testing.allocator);
             defer arena_s.deinit();
             const arena = arena_s.allocator();
-
             var tmp = try TmpDir.init(arena);
             defer tmp.cleanup();
-            const dir_path = try std.fs.path.joinZ(arena, &.{ tmp.path, "create_me" });
 
+            const dir_path = try std.fs.path.joinZ(arena, &.{ tmp.path, "create_me" });
             _ = try expectNoError(-1, NS.mkdir(dir_path, NS.mode_t.default_dir));
+
+            const bogus_path = try std.fs.path.joinZ(arena, &.{ tmp.path, "bogus", "create_me" });
+            try expectError(-1, .NOENT, NS.mkdir(bogus_path, NS.mode_t.default_dir));
         }
 
         test "mkdirat" {
@@ -177,12 +180,14 @@ fn Test(NS: type) type {
             var arena_s = std.heap.ArenaAllocator.init(testing.allocator);
             defer arena_s.deinit();
             const arena = arena_s.allocator();
-
             var tmp = try TmpDir.init(arena);
             defer tmp.cleanup();
-            const dir_path = try std.fs.path.joinZ(arena, &.{ tmp.path, "create_me" });
 
+            const dir_path = try std.fs.path.joinZ(arena, &.{ tmp.path, "create_me" });
             _ = try expectNoError(-1, NS.mkdirat(NS.AT.FDCWD, dir_path, NS.mode_t.default_dir));
+
+            const bogus_path = try std.fs.path.joinZ(arena, &.{ tmp.path, "bogus", "create_me" });
+            try expectError(-1, .NOENT, NS.mkdirat(NS.AT.FDCWD, bogus_path, NS.mode_t.default_dir));
         }
 
         test "open" {
@@ -259,6 +264,7 @@ fn Test(NS: type) type {
             var buf: [4]u8 = .{ 0x0, 0x1, 0x2, 0x3 };
             _ = try expectNoError(-1, NS.write(fd, &buf, buf.len));
             _ = try expectNoError(-1, NS.close(fd));
+            try expectError(-1, .BADF, NS.write(-42, &buf, buf.len));
         }
 
         fn expectError(expected_error_sentinel: anytype, expected_ecode: NS.E, rv: anytype) !void {

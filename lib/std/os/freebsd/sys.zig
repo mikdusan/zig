@@ -92,7 +92,7 @@ pub const getdirentries = if (@hasField(sys.SYS, "getdirentries@12"))
 else if (@hasField(sys.SYS, "getdirentries@2"))
     struct {
         fn getdirentries(fd: sys.fd_t, buf: [*]u8, len: c_uint, basep: ?*c_long) c_int {
-            const rv = sys.syscall4(.@"getdirentries@3", @as(u32, @bitCast(fd)), @intFromPtr(buf), len, @intFromPtr(basep));
+            const rv = sys.syscall4(.@"getdirentries@2", @as(u32, @bitCast(fd)), @intFromPtr(buf), len, @intFromPtr(basep));
             return @bitCast(@as(u32, @truncate(rv)));
         }
     }.getdirentries
@@ -434,23 +434,41 @@ pub const O = packed struct(u32) {
     // zig fmt: on
 };
 
-pub const dirent_t = extern struct {
-    fileno: sys.ino_t,
-    off: sys.off_t,
-    reclen: u16,
-    type: u8,
-    pad0: u8,
-    namlen: u16,
-    pad1: u16,
-    name: [255 + 1]u8,
+pub const dirent_t = if (@hasField(sys.SYS, "getdirentries@12"))
+    extern struct {
+        fileno: sys.ino_t,
+        off: sys.off_t,
+        reclen: u16,
+        type: u8,
+        pad0: u8,
+        namlen: u16,
+        pad1: u16,
+        name: [255 + 1]u8,
 
-    comptime {
-        const size = 280;
-        if (@sizeOf(@This()) != size) {
-            @compileError(std.fmt.comptimePrint("expected size {d} bytes, found {d}", .{ size, @sizeOf(@This()) }));
+        comptime {
+            const size = 280;
+            if (@sizeOf(@This()) != size) {
+                @compileError(std.fmt.comptimePrint("expected size {d} bytes, found {d}", .{ size, @sizeOf(@This()) }));
+            }
         }
     }
-};
+else if (@hasField(sys.SYS, "getdirentries@2") or @hasField(sys.SYS, "getdirentries@1"))
+    extern struct {
+        fileno: u32,
+        reclen: u16,
+        type: u8,
+        namlen: u8,
+        name: [255 + 1]u8,
+
+        comptime {
+            const size = 264;
+            if (@sizeOf(@This()) != size) {
+                @compileError(std.fmt.comptimePrint("expected size {d} bytes, found {d}", .{ size, @sizeOf(@This()) }));
+            }
+        }
+    }
+else
+    sys.missing_feature;
 
 pub const mode_t = packed struct(u16) {
     // zig fmt: off
