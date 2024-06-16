@@ -45,7 +45,7 @@ fn Test(NS: type) type {
         }
 
         test "getdents" {
-            if (!comptime NS.hasFeatures(.{ .getdents })) return error.SkipZigTest;
+            if (!comptime NS.hasFeatures(.{.getdents})) return error.SkipZigTest;
 
             var arena_s = std.heap.ArenaAllocator.init(testing.allocator);
             defer arena_s.deinit();
@@ -84,7 +84,7 @@ fn Test(NS: type) type {
         }
 
         test "getdirentries" {
-            if (!comptime NS.hasFeatures(.{ .getdirentries })) return error.SkipZigTest;
+            if (!comptime NS.hasFeatures(.{.getdirentries})) return error.SkipZigTest;
 
             var arena_s = std.heap.ArenaAllocator.init(testing.allocator);
             defer arena_s.deinit();
