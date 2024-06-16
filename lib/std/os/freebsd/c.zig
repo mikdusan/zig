@@ -10,7 +10,16 @@ const sys = std.os.freebsd.sys;
 
 pub extern "c" fn close(fd: c.fd_t) c_int;
 pub extern "c" fn creat(path: [*:0]const u8, mode: c.mode_t) c.fd_t;
-pub extern "c" fn getdents(fd: c.fd_t, buf: [*]u8, len: usize) isize;
+
+pub const getdents = if (sys.osintver < 12_000_000)
+    struct {
+        extern "c" fn @"getdents@FBSD_1.0"(fd: c.fd_t, buf: [*]u8, len: c_int) c_int;
+    }.@"getdents@FBSD_1.0"
+else
+    struct {
+        extern "c" fn getdents(fd: c.fd_t, buf: [*]u8, len: usize) isize;
+    }.getdents;
+
 pub extern "c" fn getegid() c.gid_t;
 pub extern "c" fn geteuid() c.uid_t;
 pub extern "c" fn getgid() c.gid_t;
@@ -30,14 +39,14 @@ pub extern "c" fn write(fd: c.fd_t, buf: [*]const u8, len: usize) isize;
 
 pub const errno = sys.errno;
 
-pub const getdirentries = switch (sys.osintver) {
-    12_000_000 => struct {
-        extern "c" fn getdirentries(fd: c.fd_t, buf: [*]u8, len: usize, basep: ?*c.off_t) isize;
-    }.getdirentries,
-    else => struct {
+pub const getdirentries = if (sys.osintver < 12_000_000)
+    struct {
+        extern "c" fn @"getdirentries@FBSD_1.0"(fd: c.fd_t, buf: [*]u8, len: usize, basep: ?*c.off_t) isize;
+    }.@"getdirentries@FBSD_1.0"
+else
+    struct {
         extern "c" fn getdirentries(fd: sys.fd_t, buf: [*]u8, len: c_uint, basep: ?*c_long) c_int;
-    }.getdirentries,
-};
+    }.getdirentries;
 
 pub const AT = sys.AT;
 pub const E = sys.E;

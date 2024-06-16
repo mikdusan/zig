@@ -56,7 +56,7 @@ fn Test(NS: type) type {
             const file = try tmp.dir.createFile("empty.txt", .{});
             defer file.close();
 
-            var buf: [1024]u8 = undefined;
+            var buf: [8192]u8 align(@alignOf(NS.dirent_t)) = undefined;
             const len = try expectNoError(-1, NS.getdents(tmp.dir.fd, &buf, buf.len));
 
             var entries: [3]*const sys.dirent_t = undefined;

@@ -71,12 +71,17 @@ else if (hasFeature(.open))
 else
     sys.missing_feature;
 
-pub const getdents = if (hasFeature(.getdirentries))
+pub const getdents = if (@hasField(sys.SYS, "getdirentries@12"))
     struct {
-        const len_t = @typeInfo(@TypeOf(getdirentries)).Fn.params[2].type.?;
-
-        fn getdents(fd: sys.fd_t, buf: [*]u8, len: len_t) isize {
+        fn getdents(fd: sys.fd_t, buf: [*]u8, len: usize) isize {
             return getdirentries(fd, buf, len, null);
+        }
+    }.getdents
+else if (@hasField(sys.SYS, "getdents"))
+    struct {
+        fn getdents(fd: sys.fd_t, buf: [*]u8, len: usize) isize {
+            const rv = sys.syscall3(.getdents, @as(u32, @bitCast(fd)), @intFromPtr(buf), len);
+            return @bitCast(rv);
         }
     }.getdents
 else
