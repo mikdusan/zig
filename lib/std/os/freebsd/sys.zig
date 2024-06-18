@@ -1,6 +1,8 @@
 //! This file provides the system interface to FreeBSD, matching
 //! those that are provided by system libc, whether or not libc
-//! is linked. The following abstractions are made:
+//! is linked.
+//!
+//! The following abstractions are made:
 //! * Work around kernel bugs and limitations.
 //! * Implement syscalls in the same way that libc functions;
 //!   e.g. `open` uses the `openat` call when available.
@@ -70,6 +72,27 @@ else if (hasFeature(.open))
     }.creat
 else
     sys.missing_feature;
+
+pub const clock_getcpuclockid = if (@hasField(sys.SYS, "clock_getcpuclockid2"))
+    struct {
+        fn clock_getcpuclockid(pid: sys.pid_t, clockid: *sys.clockid_t) c_int {
+            const rv = sys.syscall3(.clock_getcpuclockid2, @as(u32, @bitCast(pid)), @as(u32, @bitCast(@intFromEnum(sys.cpuclock_which_t.PID))), @intFromPtr(clockid));
+            return @bitCast(@as(u32, @truncate(rv)));
+        }
+    }.clock_getcpuclockid
+else
+    sys.missing_feature;
+
+pub const clock_getres = if (@hasField(sys.SYS, "clock_getres"))
+    struct {
+        fn clock_getres(clock_id: sys.clockid_t, tp: *sys.timespec_t) c_int {
+            const rv = sys.syscall2(.clock_getres, @as(u32, @bitCast(@intFromEnum(clock_id))), @intFromPtr(tp));
+            return @bitCast(@as(u32, @truncate(rv)));
+        }
+    }.clock_getres
+else
+    sys.missing_feature;
+
 
 pub const getdents = if (@hasField(sys.SYS, "getdirentries@12"))
     struct {
@@ -277,6 +300,33 @@ pub const write = if (@hasField(sys.SYS, "write"))
 else
     sys.missing_feature;
 
+pub const clock_t = if (@sizeOf(usize) == 8) i32 else c_ulong;
+pub const fd_t = c_int;
+pub const gid_t = u32;
+pub const id_t = c_int;
+pub const ino_t = usize;
+pub const off_t = isize;
+pub const pid_t = i32;
+pub const rlim_t = i64;
+pub const suseconds_t = c_long;
+pub const time_t = if (@sizeOf(usize) == 8) i64 else i32;
+pub const uid_t = u32;
+
+pub const AT = packed struct(u32) {
+    // zig fmt: off
+    _1: u6 = 0,
+    EACCESS:          bool = false,
+    SYMLINK_NOFOLLOW: bool = false,
+    SYMLINK_FOLLOW:   bool = false,
+    REMOVEDIR:        bool = false,
+    _11: u1 = 0,
+    RESOLVE_BENEATH:  bool = false,
+    EMPTY_PATH:       bool = false,
+    // zig fmt: on
+
+    pub const FDCWD: sys.fd_t = -100;
+};
+
 pub const E = enum(c_int) {
     // zig fmt: off
     SUCCESS        =  0,
@@ -384,28 +434,6 @@ pub const E = enum(c_int) {
     pub const ENOTSUP = E.OPNOTSUPP;
 };
 
-pub const fd_t = c_int;
-pub const gid_t = u32;
-pub const ino_t = usize;
-pub const off_t = isize;
-pub const pid_t = i32;
-pub const uid_t = u32;
-
-pub const AT = packed struct(u32) {
-    // zig fmt: off
-    _1: u6 = 0,
-    EACCESS:          bool = false,
-    SYMLINK_NOFOLLOW: bool = false,
-    SYMLINK_FOLLOW:   bool = false,
-    REMOVEDIR:        bool = false,
-    _11: u1 = 0,
-    RESOLVE_BENEATH:  bool = false,
-    EMPTY_PATH:       bool = false,
-    // zig fmt: on
-
-    pub const FDCWD: sys.fd_t = -100;
-};
-
 pub const O = packed struct(u32) {
     // zig fmt: off
     WRONLY:          bool = false, // open for writing only
@@ -437,6 +465,31 @@ pub const O = packed struct(u32) {
 
     _: u6 = 0,
     // zig fmt: on
+};
+
+pub const clockid_t = enum(i32) {
+    // zig fmt: off
+    REALTIME           =  0,
+    VIRTUAL            =  1,
+    PROF               =  2,
+    MONOTONIC          =  4,
+    UPTIME             =  5,
+    UPTIME_PRECISE     =  7,
+    UPTIME_FAST        =  8,
+    REALTIME_PRECISE   =  9,
+    REALTIME_FAST      = 10,
+    MONOTONIC_PRECISE  = 11,
+    MONOTONIC_FAST     = 12,
+    SECOND             = 13,
+    THREAD_CPUTIME_ID  = 14,
+    PROCESS_CPUTIME_ID = 15,
+    // zig fmt: on
+};
+
+pub const cpuclock_which_t = enum(c_int) {
+    PID = 0,
+    TID = 1,
+    _,
 };
 
 pub const dirent_t = if (@hasField(sys.SYS, "getdirentries@12"))
@@ -516,6 +569,88 @@ pub const mode_t = packed struct(u16) {
         .WOTH = true,
         .XOTH = true,
     };
+};
+
+pub const timer_t = enum(c_int) {
+    RELTIME = 0,
+    ABSTIME = 1,
+};
+
+pub const priority_t = struct {
+    pub const which_t = enum(c_int) {
+        PROCESS = 0,
+        PGRP = 1,
+        USER = 2,
+        _,
+    };
+
+    pub const MAX = 20;
+    pub const MIN = -20;
+};
+
+pub const rlimit_t = extern struct {
+    cur: sys.rlim_t,
+    max: sys.rlim_t,
+
+    pub const resource_t = enum(c_int) {
+        // zig fmt: off
+        CPU     = 0,
+        FSIZE   = 1,
+        DATA    = 2,
+        STACK   = 3,
+        CORE    = 4,
+        RSS     = 5,
+        MEMLOCK = 6,
+        NPROC   = 7,
+        NOFILE  = 8,
+        SBSIZE  = 9,
+        VMEM    = 10,
+        NPTS    = 11,
+        SWAP    = 12,
+        KQUEUES = 13,
+        UMTXP   = 14,
+        _,
+        // zig fmt: on
+
+        pub const INFINITY: sys.rlim_t = (@as(u64, 1) << 63) - 1;
+        pub const SAVED_MAX = INFINITY;
+        pub const SAVED_CUR = INFINITY;
+    };
+};
+
+pub const rusage_t = extern struct {
+    utime: sys.timeval_t,
+    stime: sys.timeval_t,
+    maxrss: c_long,
+    ixrss: c_long,
+    idrss: c_long,
+    isrss: c_long,
+    minflt: c_long,
+    majflt: c_long,
+    nswap: c_long,
+    inblock: c_long,
+    oublock: c_long,
+    msgsnd: c_long,
+    msgrcv: c_long,
+    nsignals: c_long,
+    nvcsw: c_long,
+    nivcsw: c_long,
+
+    pub const who_t = enum(c_int) {
+        SELF = 0,
+        CHILDREN = -1,
+        THREAD = 1,
+    };
+};
+
+pub const timespec_t = extern struct {
+    sec: sys.time_t,
+    nsec: c_long,
+};
+
+pub const timeval_t = extern struct {
+    sec: sys.time_t,
+    usec: sys.suseconds_t,
 };
 
 const Feature = std.os.freebsd.Feature(@This());

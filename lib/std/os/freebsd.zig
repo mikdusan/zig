@@ -37,8 +37,8 @@ pub fn Feature(NS: type) type {
 
 comptime {
     if (builtin.is_test) {
-        _ = c;
         _ = sys;
+        _ = if (builtin.link_libc) c;
         _ = @import("freebsd/test.zig");
     }
 }

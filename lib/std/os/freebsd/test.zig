@@ -6,12 +6,49 @@ const sys = std.os.freebsd.sys;
 const testing = std.testing;
 
 comptime {
-    _ = Test(c);
     _ = Test(sys);
+    _ = if (builtin.link_libc) Test(c);
 }
 
 fn Test(NS: type) type {
     return struct {
+        test "clock_getcpuclockid" {
+            if (!comptime NS.hasFeature(.clock_getcpuclockid)) return error.SkipZigTest;
+
+            var id: c.clockid_t = undefined;
+            _ = try invExpectNoError(NS.clock_getcpuclockid(0, &id));
+        }
+
+        test "clock_getres" {
+            if (!comptime NS.hasFeature(.clock_getres)) return error.SkipZigTest;
+
+            var tp: NS.timespec_t = undefined;
+            _ = try invExpectNoError(NS.clock_getres(.MONOTONIC, &tp));
+            try testing.expect(tp.sec > 0 or tp.nsec > 0);
+        }
+
+        test "clock_gettime" {
+            if (!comptime NS.hasFeature(.clock_gettime)) return error.SkipZigTest;
+
+            var tp: NS.timespec_t = undefined;
+            _ = try invExpectNoError(NS.clock_gettime(.MONOTONIC, &tp));
+            try testing.expect(tp.sec > 0 or tp.nsec > 0);
+        }
+
+        test "clock_nanosleep" {
+            if (!comptime NS.hasFeature(.clock_nanosleep)) return error.SkipZigTest;
+
+            const rqtp: NS.timespec_t = .{ .sec = 0, .nsec = 1000 };
+            _ = try directExpectNoError(NS.clock_nanosleep(.MONOTONIC, .RELTIME, &rqtp, null));
+        }
+
+        test "nanosleep" {
+            if (!comptime NS.hasFeature(.nanosleep)) return error.SkipZigTest;
+
+            const rqtp: NS.timespec_t = .{ .sec = 0, .nsec = 1000 };
+            _ = try directExpectNoError(NS.nanosleep(&rqtp, null));
+        }
+
         test "close" {
             if (!comptime NS.hasFeatures(.{ .open, .close })) return error.SkipZigTest;
 
@@ -267,6 +304,8 @@ fn Test(NS: type) type {
             try expectError(-1, .BADF, NS.write(-42, &buf, buf.len));
         }
 
+        // use with return convention where:
+        //   - error rv == -1 and errno
         fn expectError(expected_error_sentinel: anytype, expected_ecode: NS.E, rv: anytype) !void {
             if (rv != expected_error_sentinel) {
                 print("expected error sentinel {}, found {}\n", .{ expected_error_sentinel, rv });
@@ -279,9 +318,64 @@ fn Test(NS: type) type {
             }
         }
 
+        // use with return convention where:
+        //   - error rv == -1 and errno
         fn expectNoError(unexpected_error_sentinel: anytype, rv: anytype) !@TypeOf(rv) {
             if (rv == unexpected_error_sentinel) {
-                print("expected no error sentinel, found {} and errno={s}\n", .{ unexpected_error_sentinel, @tagName(NS.errno()) });
+                print("expected no error sentinel {}, found {} and errno={s}\n", .{ unexpected_error_sentinel, rv, @tagName(NS.errno()) });
+                return error.TestExpectedNoError;
+            }
+            return rv;
+        }
+
+        // use with return convention where:
+        //   - success rv == 0
+        //   - otherwise errno
+        fn invExpectError(expected_ecode: NS.E, rv: anytype) !void {
+            if (rv == 0) {
+                print("expected sentinel != 0, found {} and errno={s}\n", .{ rv, @tagName(NS.errno()) });
+                return error.TestExpectedNoError;
+            }
+            const ec = NS.errno();
+            if (ec != expected_ecode) {
+                print("expected errno {}, found {}\n", .{ expected_ecode, ec });
+                return error.TestExpectedError;
+            }
+            return rv;
+        }
+
+        // use with return convention where:
+        //   - success rv == 0
+        //   - otherwise errno
+        fn invExpectNoError(rv: anytype) !@TypeOf(rv) {
+            if (rv != 0) {
+                print("expected sentinel == 0, found {} and errno={s}\n", .{ rv, @tagName(NS.errno()) });
+                return error.TestExpectedNoError;
+            }
+            return rv;
+        }
+
+        // use with return convention where:
+        //   - success rv == 0
+        //   - otherwise rv is the error code
+        fn directExpectError(expected_ecode: NS.E, rv: anytype) !void {
+            if (rv == 0) {
+                print("expected sentinel != 0, found {}\n", .{ rv });
+                return error.TestExpectedError;
+            }
+            if (rv != expected_ecode) {
+                print("expected error {}, found {}\n", .{ expected_ecode, rv });
+                return error.TestExpectedError;
+            }
+        }
+
+        // use with return convention where:
+        //   - success rv == 0
+        //   - otherwise rv is the error code
+        fn directExpectNoError(rv: anytype) !@TypeOf(rv) {
+            if (rv != 0) {
+                const ec: NS.E = @enumFromInt(rv);
+                print("expected sentinel == 0, found {} and direct errno={s}\n", .{ rv, @tagName(ec) });
                 return error.TestExpectedNoError;
             }
             return rv;
