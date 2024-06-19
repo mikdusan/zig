@@ -14,14 +14,14 @@ const syscall = @import("sys/syscall.zig");
 
 pub const SYS = syscall.SYS;
 
-pub const syscall0 = syscall.syscall0;
-pub const syscall1 = syscall.syscall1;
-pub const syscall2 = syscall.syscall2;
-pub const syscall3 = syscall.syscall3;
-pub const syscall4 = syscall.syscall4;
+pub const syscall0_errno = syscall.syscall0_errno;
+pub const syscall1_errno = syscall.syscall1_errno;
+pub const syscall2_errno = syscall.syscall2_errno;
+pub const syscall3_errno = syscall.syscall3_errno;
+pub const syscall4_errno = syscall.syscall4_errno;
 pub const syscall4_noerrno = syscall.syscall4_noerrno;
-pub const syscall5 = syscall.syscall5;
-pub const syscall6 = syscall.syscall6;
+pub const syscall5_errno = syscall.syscall5_errno;
+pub const syscall6_errno = syscall.syscall6_errno;
 
 pub const Result = syscall.Result;
 
@@ -52,7 +52,10 @@ pub fn errno() sys.E {
 pub const close = if (@hasField(sys.SYS, "close"))
     struct {
         fn close(fd: sys.fd_t) c_int {
-            const rv = sys.syscall1(.close, @as(u32, @bitCast(fd)));
+            const rv = sys.syscall1_errno(
+                .close,
+                @as(u32, @bitCast(fd)),
+            );
             return @bitCast(@as(u32, @truncate(rv)));
         }
     }.close
@@ -77,7 +80,12 @@ else
 pub const clock_getcpuclockid = if (@hasField(sys.SYS, "clock_getcpuclockid2"))
     struct {
         fn clock_getcpuclockid(pid: sys.pid_t, clockid: *sys.clockid_t) c_int {
-            const rv = sys.syscall3(.clock_getcpuclockid2, @as(u32, @bitCast(pid)), @as(u32, @bitCast(@intFromEnum(sys.cpuclock_which_t.PID))), @intFromPtr(clockid));
+            const rv = sys.syscall3_errno(
+                .clock_getcpuclockid2,
+                @as(u32, @bitCast(pid)),
+                @as(u32, @bitCast(@intFromEnum(sys.cpuclock_which_t.PID))),
+                @intFromPtr(clockid),
+            );
             return @bitCast(@as(u32, @truncate(rv)));
         }
     }.clock_getcpuclockid
@@ -87,7 +95,11 @@ else
 pub const clock_getres = if (@hasField(sys.SYS, "clock_getres"))
     struct {
         fn clock_getres(clock_id: sys.clockid_t, tp: *sys.timespec_t) c_int {
-            const rv = sys.syscall2(.clock_getres, @as(u32, @bitCast(@intFromEnum(clock_id))), @intFromPtr(tp));
+            const rv = sys.syscall2_errno(
+                .clock_getres,
+                @as(u32, @bitCast(@intFromEnum(clock_id))),
+                @intFromPtr(tp),
+            );
             return @bitCast(@as(u32, @truncate(rv)));
         }
     }.clock_getres
@@ -97,7 +109,11 @@ else
 pub const clock_gettime = if (@hasField(sys.SYS, "clock_gettime"))
     struct {
         fn clock_gettime(clock_id: sys.clockid_t, tp: *sys.timespec_t) c_int {
-            const rv = sys.syscall2(.clock_gettime, @as(u32, @bitCast(@intFromEnum(clock_id))), @intFromPtr(tp));
+            const rv = sys.syscall2_errno(
+                .clock_gettime,
+                @as(u32, @bitCast(@intFromEnum(clock_id))),
+                @intFromPtr(tp),
+            );
             return @bitCast(@as(u32, @truncate(rv)));
         }
     }.clock_gettime
@@ -123,7 +139,11 @@ else
 pub const clock_settime = if (@hasField(sys.SYS, "clock_settime"))
     struct {
         fn clock_settime(clock_id: sys.clockid_t, tp: *const sys.timespec_t) c_int {
-            const rv = sys.syscall2(.clock_settime, @as(u32, @bitCast(@intFromEnum(clock_id))), @intFromPtr(tp));
+            const rv = sys.syscall2_errno(
+                .clock_settime,
+                @as(u32, @bitCast(@intFromEnum(clock_id))),
+                @intFromPtr(tp),
+            );
             return @bitCast(@as(u32, @truncate(rv)));
         }
     }.clock_settime
@@ -139,7 +159,12 @@ pub const getdents = if (@hasField(sys.SYS, "getdirentries@12"))
 else if (@hasField(sys.SYS, "getdents"))
     struct {
         fn getdents(fd: sys.fd_t, buf: [*]u8, len: usize) isize {
-            const rv = sys.syscall3(.getdents, @as(u32, @bitCast(fd)), @intFromPtr(buf), len);
+            const rv = sys.syscall3_errno(
+                .getdents,
+                @as(u32, @bitCast(fd)),
+                @intFromPtr(buf),
+                len,
+            );
             return @bitCast(rv);
         }
     }.getdents
@@ -149,21 +174,39 @@ else
 pub const getdirentries = if (@hasField(sys.SYS, "getdirentries@12"))
     struct {
         fn getdirentries(fd: sys.fd_t, buf: [*]u8, len: usize, basep: ?*sys.off_t) isize {
-            const rv = sys.syscall4(.@"getdirentries@12", @as(u32, @bitCast(fd)), @intFromPtr(buf), len, @intFromPtr(basep));
+            const rv = sys.syscall4_errno(
+                .@"getdirentries@12",
+                @as(u32, @bitCast(fd)),
+                @intFromPtr(buf),
+                len,
+                @intFromPtr(basep),
+            );
             return @bitCast(rv);
         }
     }.getdirentries
 else if (@hasField(sys.SYS, "getdirentries@2"))
     struct {
         fn getdirentries(fd: sys.fd_t, buf: [*]u8, len: c_uint, basep: ?*c_long) c_int {
-            const rv = sys.syscall4(.@"getdirentries@2", @as(u32, @bitCast(fd)), @intFromPtr(buf), len, @intFromPtr(basep));
+            const rv = sys.syscall4_errno(
+                .@"getdirentries@2",
+                @as(u32, @bitCast(fd)),
+                @intFromPtr(buf),
+                len,
+                @intFromPtr(basep),
+            );
             return @bitCast(@as(u32, @truncate(rv)));
         }
     }.getdirentries
 else if (@hasField(sys.SYS, "getdirentries@1"))
     struct {
         fn getdirentries(fd: sys.fd_t, buf: [*]u8, len: c_uint, basep: ?*c_long) c_int {
-            const rv = sys.syscall4(.@"getdirentries@1", @as(u32, @bitCast(fd)), @intFromPtr(buf), len, @intFromPtr(basep));
+            const rv = sys.syscall4_errno(
+                .@"getdirentries@1",
+                @as(u32, @bitCast(fd)),
+                @intFromPtr(buf),
+                len,
+                @intFromPtr(basep),
+            );
             return @bitCast(@as(u32, @truncate(rv)));
         }
     }.getdirentries
@@ -173,7 +216,7 @@ else
 pub const getegid = if (@hasField(sys.SYS, "getegid"))
     struct {
         fn getegid() sys.gid_t {
-            const rv = sys.syscall0(.getegid);
+            const rv = sys.syscall0_errno(.getegid);
             return @truncate(rv);
         }
     }.getegid
@@ -183,7 +226,7 @@ else
 pub const geteuid = if (@hasField(sys.SYS, "geteuid"))
     struct {
         fn geteuid() sys.uid_t {
-            const rv = sys.syscall0(.geteuid);
+            const rv = sys.syscall0_errno(.geteuid);
             return @truncate(rv);
         }
     }.geteuid
@@ -193,7 +236,7 @@ else
 pub const getgid = if (@hasField(sys.SYS, "getgid"))
     struct {
         fn getgid() sys.gid_t {
-            const rv = sys.syscall0(.getgid);
+            const rv = sys.syscall0_errno(.getgid);
             return @truncate(rv);
         }
     }.getgid
@@ -203,7 +246,7 @@ else
 pub const getpid = if (@hasField(sys.SYS, "getpid"))
     struct {
         fn getpid() sys.pid_t {
-            const rv = sys.syscall0(.getpid);
+            const rv = sys.syscall0_errno(.getpid);
             return @bitCast(@as(u32, @truncate(rv)));
         }
     }.getpid
@@ -213,7 +256,7 @@ else
 pub const getppid = if (@hasField(sys.SYS, "getppid"))
     struct {
         fn getppid() sys.pid_t {
-            const rv = sys.syscall0(.getppid);
+            const rv = sys.syscall0_errno(.getppid);
             return @bitCast(@as(u32, @truncate(rv)));
         }
     }.getppid
@@ -223,7 +266,7 @@ else
 pub const getuid = if (@hasField(sys.SYS, "getuid"))
     struct {
         fn getuid() sys.uid_t {
-            const rv = sys.syscall0(.getuid);
+            const rv = sys.syscall0_errno(.getuid);
             return @truncate(rv);
         }
     }.getuid
@@ -233,7 +276,11 @@ else
 pub const mkdir = if (@hasField(sys.SYS, "mkdir"))
     struct {
         fn mkdir(path: [*:0]const u8, mode: sys.mode_t) c_int {
-            const rv = sys.syscall2(.mkdir, @intFromPtr(path), @as(u16, @bitCast(mode)));
+            const rv = sys.syscall2_errno(
+                .mkdir,
+                @intFromPtr(path),
+                @as(u16, @bitCast(mode)),
+            );
             return @bitCast(@as(u32, @truncate(rv)));
         }
     }.mkdir
@@ -243,7 +290,12 @@ else
 pub const mkdirat = if (@hasField(sys.SYS, "mkdirat"))
     struct {
         fn mkdirat(fd: sys.fd_t, path: [*:0]const u8, mode: sys.mode_t) c_int {
-            const rv = sys.syscall3(.mkdirat, @as(u32, @bitCast(fd)), @intFromPtr(path), @as(u16, @bitCast(mode)));
+            const rv = sys.syscall3_errno(
+                .mkdirat,
+                @as(u32, @bitCast(fd)),
+                @intFromPtr(path),
+                @as(u16, @bitCast(mode)),
+            );
             return @bitCast(@as(u32, @truncate(rv)));
         }
     }.mkdirat
@@ -266,7 +318,7 @@ pub const nanosleep = if (@hasField(sys.SYS, "clock_nanosleep"))
 else if (@hasField(sys.SYS, "nanosleep"))
     struct {
         fn nanosleep(rqtp: *const timespec_t, rmtp: ?*sys.timespec_t) c_int {
-            const rv = sys.syscall2(
+            const rv = sys.syscall2_errno(
                 .nanosleep,
                 @intFromPtr(rqtp),
                 @intFromPtr(rmtp),
@@ -286,7 +338,12 @@ pub const open = if (hasFeature(.openat))
 else if (@hasField(sys.SYS, "open"))
     struct {
         fn open(path: [*:0]const u8, flags: sys.O, mode: sys.mode_t) sys.fd_t {
-            const rv = sys.syscall3(.open, @intFromPtr(path), @as(u32, @bitCast(flags)), @as(u16, @bitCast(mode)));
+            const rv = sys.syscall3_errno(
+                .open,
+                @intFromPtr(path),
+                @as(u32, @bitCast(flags)),
+                @as(u16, @bitCast(mode)),
+            );
             return @bitCast(@as(u32, @truncate(rv)));
         }
     }.open
@@ -296,7 +353,13 @@ else
 pub const openat = if (@hasField(sys.SYS, "openat"))
     struct {
         fn openat(fd: sys.fd_t, path: [*:0]const u8, flags: sys.O, mode: sys.mode_t) sys.fd_t {
-            const rv = sys.syscall4(.openat, @as(u32, @bitCast(fd)), @intFromPtr(path), @as(u32, @bitCast(flags)), @as(u16, @bitCast(mode)));
+            const rv = sys.syscall4_errno(
+                .openat,
+                @as(u32, @bitCast(fd)),
+                @intFromPtr(path),
+                @as(u32, @bitCast(flags)),
+                @as(u16, @bitCast(mode)),
+            );
             return @bitCast(@as(u32, @truncate(rv)));
         }
     }.openat
@@ -306,7 +369,12 @@ else
 pub const read = if (@hasField(sys.SYS, "read"))
     struct {
         fn read(fd: sys.fd_t, buf: [*]u8, len: usize) isize {
-            const rv = sys.syscall3(.read, @as(u32, @bitCast(fd)), @intFromPtr(buf), len);
+            const rv = sys.syscall3_errno(
+                .read,
+                @as(u32, @bitCast(fd)),
+                @intFromPtr(buf),
+                len,
+            );
             return @bitCast(rv);
         }
     }.read
@@ -316,7 +384,7 @@ else
 pub const setegid = if (@hasField(sys.SYS, "setegid"))
     struct {
         fn setegid(gid: sys.gid_t) c_int {
-            const rv = sys.syscall1(.setegid, gid);
+            const rv = sys.syscall1_errno(.setegid, gid);
             return @bitCast(@as(u32, @truncate(rv)));
         }
     }.setegid
@@ -326,7 +394,7 @@ else
 pub const seteuid = if (@hasField(sys.SYS, "seteuid"))
     struct {
         fn seteuid(uid: sys.uid_t) c_int {
-            const rv = sys.syscall1(.seteuid, uid);
+            const rv = sys.syscall1_errno(.seteuid, uid);
             return @bitCast(@as(u32, @truncate(rv)));
         }
     }.seteuid
@@ -336,7 +404,7 @@ else
 pub const setgid = if (@hasField(sys.SYS, "setgid"))
     struct {
         fn setgid(gid: sys.gid_t) c_int {
-            const rv = sys.syscall1(.setgid, gid);
+            const rv = sys.syscall1_errno(.setgid, gid);
             return @bitCast(@as(u32, @truncate(rv)));
         }
     }.setgid
@@ -346,7 +414,7 @@ else
 pub const setuid = if (@hasField(sys.SYS, "setuid"))
     struct {
         fn setuid(uid: sys.uid_t) c_int {
-            const rv = sys.syscall1(.setuid, uid);
+            const rv = sys.syscall1_errno(.setuid, uid);
             return @bitCast(@as(u32, @truncate(rv)));
         }
     }.setuid
@@ -356,7 +424,12 @@ else
 pub const write = if (@hasField(sys.SYS, "write"))
     struct {
         fn write(fd: sys.fd_t, buf: [*]const u8, len: usize) isize {
-            const rv = sys.syscall3(.write, @as(u32, @bitCast(fd)), @intFromPtr(buf), len);
+            const rv = sys.syscall3_errno(
+                .write,
+                @as(u32, @bitCast(fd)),
+                @intFromPtr(buf),
+                len,
+            );
             return @bitCast(rv);
         }
     }.write

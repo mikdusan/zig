@@ -30,7 +30,7 @@ pub extern "c" fn open(path: [*:0]const u8, flags: c.O, mode: c.mode_t) c.fd_t;
 pub extern "c" fn openat(fd: c.fd_t, path: [*:0]const u8, flags: c.O, mode: c.mode_t) c.fd_t;
 pub extern "c" fn opendir(filename: [*:0]const u8) ?*c.DIR;
 pub extern "c" fn read(fd: c.fd_t, buf: [*]u8, len: usize) isize;
-pub extern "c" fn readdir(dirp: *c.DIR) ?*c.dirent;
+pub extern "c" fn readdir(dirp: *c.DIR) ?*c.dirent_t;
 pub extern "c" fn rewinddir(dirp: *c.DIR) void;
 pub extern "c" fn seekdir(dirp: *c.DIR, loc: c_long) void;
 pub extern "c" fn setegid(egid: c.gid_t) c_int;

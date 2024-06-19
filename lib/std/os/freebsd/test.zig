@@ -15,7 +15,7 @@ fn Test(NS: type) type {
         test "clock_getcpuclockid" {
             if (!comptime NS.hasFeature(.clock_getcpuclockid)) return error.SkipZigTest;
 
-            var id: c.clockid_t = undefined;
+            var id: NS.clockid_t = undefined;
             _ = try invExpectNoError(NS.clock_getcpuclockid(0, &id));
         }
 
@@ -43,7 +43,7 @@ fn Test(NS: type) type {
         }
 
         test "clock_settime" {
-            if (!comptime NS.hasFeatures(.{ .clock_settime, .geteuid })) return error.SkipZigTest;
+            if (!comptime NS.hasFeature(.clock_settime)) return error.SkipZigTest;
             // do not run this test as root
             if (NS.geteuid() == 0) return error.SkipZigTest;
 
@@ -51,7 +51,7 @@ fn Test(NS: type) type {
         }
 
         test "close" {
-            if (!comptime NS.hasFeatures(.{ .open, .close })) return error.SkipZigTest;
+            if (!comptime NS.hasFeature(.close)) return error.SkipZigTest;
 
             var arena_s = std.heap.ArenaAllocator.init(testing.allocator);
             defer arena_s.deinit();
@@ -65,8 +65,15 @@ fn Test(NS: type) type {
             try expectError(-1, .BADF, NS.close(fd));
         }
 
+        test "closedir" {
+            if (!comptime NS.hasFeature(.closedir)) return error.SkipZigTest;
+
+            const dir = NS.opendir(".") orelse return error.TestExpectedNoError;
+            _ = try expectNoError(-1, NS.closedir(dir));
+        }
+
         test "creat" {
-            if (!comptime NS.hasFeatures(.{ .creat, .close })) return error.SkipZigTest;
+            if (!comptime NS.hasFeature(.creat)) return error.SkipZigTest;
 
             var arena_s = std.heap.ArenaAllocator.init(testing.allocator);
             defer arena_s.deinit();
@@ -82,8 +89,16 @@ fn Test(NS: type) type {
             try expectError(-1, .NOENT, NS.creat(bogus_path, NS.mode_t.default_file));
         }
 
+        test "dirfd" {
+            if (!comptime NS.hasFeature(.dirfd)) return error.SkipZigTest;
+
+            const dir = NS.opendir(".") orelse return error.TestExpectedNoError;
+            defer _ = NS.closedir(dir);
+            _ = try expectNoError(-1, NS.dirfd(dir));
+        }
+
         test "getdents" {
-            if (!comptime NS.hasFeatures(.{.getdents})) return error.SkipZigTest;
+            if (!comptime NS.hasFeature(.getdents)) return error.SkipZigTest;
 
             var arena_s = std.heap.ArenaAllocator.init(testing.allocator);
             defer arena_s.deinit();
@@ -122,7 +137,7 @@ fn Test(NS: type) type {
         }
 
         test "getdirentries" {
-            if (!comptime NS.hasFeatures(.{.getdirentries})) return error.SkipZigTest;
+            if (!comptime NS.hasFeature(.getdirentries)) return error.SkipZigTest;
 
             var arena_s = std.heap.ArenaAllocator.init(testing.allocator);
             defer arena_s.deinit();
@@ -236,7 +251,7 @@ fn Test(NS: type) type {
         }
 
         test "open" {
-            if (!comptime NS.hasFeatures(.{ .open, .close })) return error.SkipZigTest;
+            if (!comptime NS.hasFeature(.open)) return error.SkipZigTest;
 
             var arena_s = std.heap.ArenaAllocator.init(testing.allocator);
             defer arena_s.deinit();
@@ -251,7 +266,7 @@ fn Test(NS: type) type {
         }
 
         test "openat" {
-            if (!comptime NS.hasFeatures(.{ .openat, .close })) return error.SkipZigTest;
+            if (!comptime NS.hasFeature(.openat)) return error.SkipZigTest;
 
             var arena_s = std.heap.ArenaAllocator.init(testing.allocator);
             defer arena_s.deinit();
@@ -265,8 +280,15 @@ fn Test(NS: type) type {
             _ = try expectNoError(-1, NS.close(fd));
         }
 
+        test "opendir" {
+            if (!comptime NS.hasFeature(.opendir)) return error.SkipZigTest;
+
+            const dir = NS.opendir(".") orelse return error.TestExpectedNoError;
+            _ = NS.closedir(dir);
+        }
+
         test "read" {
-            if (!comptime NS.hasFeatures(.{ .open, .read, .close })) return error.SkipZigTest;
+            if (!comptime NS.hasFeature(.read)) return error.SkipZigTest;
 
             const fd = try expectNoError(-1, NS.open("/dev/zero", .{}, .{}));
             var buf: [4]u8 = undefined;
@@ -274,36 +296,80 @@ fn Test(NS: type) type {
             _ = try expectNoError(-1, NS.close(fd));
         }
 
+        test "readdir" {
+            if (!comptime NS.hasFeature(.readdir)) return error.SkipZigTest;
+
+            const dir = NS.opendir(".") orelse return error.TestExpectedNoError;
+            defer _ = NS.closedir(dir);
+            const entry = NS.readdir(dir) orelse return error.TestExpectedNoError;
+            try testing.expect(entry.namlen > 0);
+        }
+
+        test "rewinddir" {
+            if (!comptime NS.hasFeature(.rewinddir)) return error.SkipZigTest;
+
+            const dir = NS.opendir(".") orelse return error.TestExpectedNoError;
+            defer _ = NS.closedir(dir);
+            const pos0 = try expectNoError(-1, NS.telldir(dir));
+            _ = NS.readdir(dir) orelse return error.TestExpectedNoError;
+            NS.rewinddir(dir);
+            const pos1 = try expectNoError(-1, NS.telldir(dir));
+            try testing.expectEqual(pos0, pos1);
+        }
+
+        test "seekdir" {
+            if (!comptime NS.hasFeature(.seekdir)) return error.SkipZigTest;
+
+            const dir = NS.opendir(".") orelse return error.TestExpectedNoError;
+            defer _ = NS.closedir(dir);
+            const pos0 = try expectNoError(-1, NS.telldir(dir));
+            _ = NS.readdir(dir) orelse return error.TestExpectedNoError;
+            NS.seekdir(dir, pos0);
+            const pos1 = try expectNoError(-1, NS.telldir(dir));
+            try testing.expectEqual(pos0, pos1);
+        }
+
         test "setuid" {
-            if (!comptime NS.hasFeatures(.{ .geteuid, .setuid })) return error.SkipZigTest;
+            if (!comptime NS.hasFeature(.setuid)) return error.SkipZigTest;
             const euid = try expectNoError(-1, NS.geteuid());
             _ = try expectNoError(-1, NS.setuid(euid));
             if (euid != 0) try expectError(-1, .PERM, NS.setuid(0));
         }
 
         test "seteuid" {
-            if (!comptime NS.hasFeatures(.{ .geteuid, .seteuid })) return error.SkipZigTest;
+            if (!comptime NS.hasFeature(.seteuid)) return error.SkipZigTest;
             const euid = try expectNoError(-1, NS.geteuid());
             _ = try expectNoError(-1, NS.seteuid(euid));
             if (euid != 0) try expectError(-1, .PERM, NS.seteuid(0));
         }
 
         test "setgid" {
-            if (!comptime NS.hasFeatures(.{ .getegid, .setgid })) return error.SkipZigTest;
+            if (!comptime NS.hasFeature(.setgid)) return error.SkipZigTest;
             const egid = try expectNoError(-1, NS.getegid());
             _ = try expectNoError(-1, NS.setgid(egid));
             if (egid != 0) try expectError(-1, .PERM, NS.setgid(0));
         }
 
         test "setegid" {
-            if (!comptime NS.hasFeatures(.{ .getegid, .setegid })) return error.SkipZigTest;
+            if (!comptime NS.hasFeature(.setegid)) return error.SkipZigTest;
             const egid = try expectNoError(-1, NS.getegid());
             _ = try expectNoError(-1, NS.setegid(egid));
             if (egid != 0) try expectError(-1, .PERM, NS.setegid(0));
         }
 
+        test "telldir" {
+            if (!comptime NS.hasFeature(.telldir)) return error.SkipZigTest;
+
+            const dir = NS.opendir(".") orelse return error.TestExpectedNoError;
+            defer _ = NS.closedir(dir);
+            const pos0 = try expectNoError(-1, NS.telldir(dir));
+            _ = NS.readdir(dir) orelse return error.TestExpectedNoError;
+            const pos1 = try expectNoError(-1, NS.telldir(dir));
+            try testing.expect(pos1 > pos0);
+        }
+
         test "write" {
-            if (!comptime NS.hasFeatures(.{ .open, .write, .close })) return error.SkipZigTest;
+            if (!comptime NS.hasFeature(.write)) return error.SkipZigTest;
 
             const fd = try expectNoError(-1, NS.open("/dev/null", .{ .WRONLY = true }, .{}));
             var buf: [4]u8 = .{ 0x0, 0x1, 0x2, 0x3 };
@@ -366,9 +432,16 @@ fn Test(NS: type) type {
         //   - success rv == 0
         //   - otherwise rv is the error code
         fn directExpectError(expected_ecode: NS.E, rv: anytype) !void {
-            if (rv == 0) {
-                print("expected sentinel != 0, found {}\n", .{ rv });
-                return error.TestExpectedError;
+            if (@typeInfo(@TypeOf(rv)) == .Pointer) {
+                if (rv == null) {
+                    print("expected sentinel != null, found {}\n", .{rv});
+                    return error.TestExpectedError;
+                }
+            } else {
+                if (rv == 0) {
+                    print("expected sentinel != 0, found {}\n", .{rv});
+                    return error.TestExpectedError;
+                }
             }
             if (rv != expected_ecode) {
                 print("expected error {}, found {}\n", .{ expected_ecode, rv });
@@ -380,10 +453,19 @@ fn Test(NS: type) type {
         //   - success rv == 0
         //   - otherwise rv is the error code
         fn directExpectNoError(rv: anytype) !@TypeOf(rv) {
-            if (rv != 0) {
-                const ec: NS.E = @enumFromInt(rv);
-                print("expected sentinel == 0, found {} and direct errno={s}\n", .{ rv, @tagName(ec) });
-                return error.TestExpectedNoError;
+//@compileLog(@TypeOf(rv));
+            const info = @typeInfo(@TypeOf(rv));
+            if (info == .Optional and @typeInfo(info.Optional.child) == .Pointer) {
+                if (rv != null) {
+                    print("expected sentinel == null, found {}\n", .{ rv });
+                    return error.TestExpectedNoError;
+                }
+            } else {
+                if (rv != 0) {
+                    const ec: NS.E = @enumFromInt(rv);
+                    print("expected sentinel == 0, found {} and direct errno={s}\n", .{ rv, @tagName(ec) });
+                    return error.TestExpectedNoError;
+                }
             }
             return rv;
         }
