@@ -19,6 +19,7 @@ pub const syscall1 = syscall.syscall1;
 pub const syscall2 = syscall.syscall2;
 pub const syscall3 = syscall.syscall3;
 pub const syscall4 = syscall.syscall4;
+pub const syscall4_noerrno = syscall.syscall4_noerrno;
 pub const syscall5 = syscall.syscall5;
 pub const syscall6 = syscall.syscall6;
 
@@ -93,6 +94,41 @@ pub const clock_getres = if (@hasField(sys.SYS, "clock_getres"))
 else
     sys.missing_feature;
 
+pub const clock_gettime = if (@hasField(sys.SYS, "clock_gettime"))
+    struct {
+        fn clock_gettime(clock_id: sys.clockid_t, tp: *sys.timespec_t) c_int {
+            const rv = sys.syscall2(.clock_gettime, @as(u32, @bitCast(@intFromEnum(clock_id))), @intFromPtr(tp));
+            return @bitCast(@as(u32, @truncate(rv)));
+        }
+    }.clock_gettime
+else
+    sys.missing_feature;
+
+pub const clock_nanosleep = if (@hasField(sys.SYS, "clock_nanosleep"))
+    struct {
+        fn clock_nanosleep(clock_id: sys.clockid_t, mode: sys.timer_t, rqtp: *const sys.timespec_t, rmtp: ?*sys.timespec_t) c_int {
+            const rv = sys.syscall4_noerrno(
+                .clock_nanosleep,
+                @as(u32, @bitCast(@intFromEnum(clock_id))),
+                @as(u32, @bitCast(@intFromEnum(mode))),
+                @intFromPtr(rqtp),
+                @intFromPtr(rmtp),
+            );
+            return @bitCast(@as(u32, @truncate(rv)));
+        }
+    }.clock_nanosleep
+else
+    sys.missing_feature;
+
+pub const clock_settime = if (@hasField(sys.SYS, "clock_settime"))
+    struct {
+        fn clock_settime(clock_id: sys.clockid_t, tp: *const sys.timespec_t) c_int {
+            const rv = sys.syscall2(.clock_settime, @as(u32, @bitCast(@intFromEnum(clock_id))), @intFromPtr(tp));
+            return @bitCast(@as(u32, @truncate(rv)));
+        }
+    }.clock_settime
+else
+    sys.missing_feature;
 
 pub const getdents = if (@hasField(sys.SYS, "getdirentries@12"))
     struct {
@@ -211,6 +247,33 @@ pub const mkdirat = if (@hasField(sys.SYS, "mkdirat"))
             return @bitCast(@as(u32, @truncate(rv)));
         }
     }.mkdirat
+else
+    sys.missing_feature;
+
+pub const nanosleep = if (@hasField(sys.SYS, "clock_nanosleep"))
+    struct {
+        fn nanosleep(rqtp: *const timespec_t, rmtp: ?*sys.timespec_t) c_int {
+            const rv = sys.syscall4_noerrno(
+                .clock_nanosleep,
+                @as(u32, @bitCast(@intFromEnum(sys.clockid_t.REALTIME))),
+                @as(u32, @bitCast(@intFromEnum(sys.timer_t.RELTIME))),
+                @intFromPtr(rqtp),
+                @intFromPtr(rmtp),
+            );
+            return @bitCast(@as(u32, @truncate(rv)));
+        }
+    }.nanosleep
+else if (@hasField(sys.SYS, "nanosleep"))
+    struct {
+        fn nanosleep(rqtp: *const timespec_t, rmtp: ?*sys.timespec_t) c_int {
+            const rv = sys.syscall2(
+                .nanosleep,
+                @intFromPtr(rqtp),
+                @intFromPtr(rmtp),
+            );
+            return @bitCast(@as(u32, @truncate(rv)));
+        }
+    }.nanosleep
 else
     sys.missing_feature;
 
@@ -484,6 +547,7 @@ pub const clockid_t = enum(i32) {
     THREAD_CPUTIME_ID  = 14,
     PROCESS_CPUTIME_ID = 15,
     // zig fmt: on
+    _,
 };
 
 pub const cpuclock_which_t = enum(c_int) {

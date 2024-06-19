@@ -42,11 +42,12 @@ fn Test(NS: type) type {
             _ = try directExpectNoError(NS.clock_nanosleep(.MONOTONIC, .RELTIME, &rqtp, null));
         }
 
-        test "nanosleep" {
-            if (!comptime NS.hasFeature(.nanosleep)) return error.SkipZigTest;
+        test "clock_settime" {
+            if (!comptime NS.hasFeatures(.{ .clock_settime, .geteuid })) return error.SkipZigTest;
+            // do not run this test as root
+            if (NS.geteuid() == 0) return error.SkipZigTest;
 
-            const rqtp: NS.timespec_t = .{ .sec = 0, .nsec = 1000 };
-            _ = try directExpectNoError(NS.nanosleep(&rqtp, null));
+            _ = try invExpectError(.PERM, NS.clock_settime(.MONOTONIC, &.{ .sec = 0, .nsec = 1000 }));
         }
 
         test "close" {
@@ -227,6 +228,13 @@ fn Test(NS: type) type {
             try expectError(-1, .NOENT, NS.mkdirat(NS.AT.FDCWD, bogus_path, NS.mode_t.default_dir));
         }
 
+        test "nanosleep" {
+            if (!comptime NS.hasFeature(.nanosleep)) return error.SkipZigTest;
+
+            const rqtp: NS.timespec_t = .{ .sec = 0, .nsec = 1000 };
+            _ = try directExpectNoError(NS.nanosleep(&rqtp, null));
+        }
+
         test "open" {
             if (!comptime NS.hasFeatures(.{ .open, .close })) return error.SkipZigTest;
 
@@ -341,7 +349,6 @@ fn Test(NS: type) type {
                 print("expected errno {}, found {}\n", .{ expected_ecode, ec });
                 return error.TestExpectedError;
             }
-            return rv;
         }
 
         // use with return convention where:
