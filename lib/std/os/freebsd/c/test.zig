@@ -31,7 +31,7 @@ test "fdclosedir" {
 test "fdopendir" {
     if (!comptime c.hasFeature(.fdopendir)) return error.SkipZigTest;
 
-    const fd = try expect.sentinelNoError(-1, c.open(".", .{}, .{}));
+    const fd = try expect.sentinelNoError(-1, c.open(".", .{}, c.default.dir_mode));
     defer _ = c.close(fd);
     _ = try expect.sentinelNoError(null, c.fdopendir(fd));
 }

@@ -625,6 +625,7 @@ pub const fflags_t = u32;
 pub const gid_t = u32;
 pub const id_t = c_int;
 pub const ino_t = u64;
+pub const mode_t = u16;
 pub const nlink_t = u64;
 pub const off_t = i64;
 pub const pid_t = i32;
@@ -815,6 +816,11 @@ pub const cpuclock_which_t = enum(c_int) {
     _,
 };
 
+pub const default = struct {
+    pub const file_mode: sys.mode_t = 0o666;
+    pub const dir_mode: sys.mode_t = 0o777;
+};
+
 pub const dirent_t = if (@hasField(sys.SYS, "getdirentries@12"))
     extern struct {
         fileno: sys.ino_t,
@@ -850,49 +856,6 @@ else if (@hasField(sys.SYS, "getdirentries@2") or @hasField(sys.SYS, "getdirentr
     }
 else
     sys.missing_feature;
-
-pub const mode_t = packed struct(u16) {
-    // zig fmt: off
-    XOTH: bool = false, // X for other
-    WOTH: bool = false, // W for other
-    ROTH: bool = false, // R for other
-
-    XGRP: bool = false, // X for group
-    WGRP: bool = false, // W for group
-    RGRP: bool = false, // R for group
-
-    XUSR: bool = false, // X for owner
-    WUSR: bool = false, // W for owner
-    RUSR: bool = false, // R for owner
-
-    SVTX: bool = false, // sticky bit
-    SGID: bool = false, // set group id on execution
-    SUID: bool = false, // set user id on execution
-
-    _: u4 = 0,
-    // zig fmt: on
-
-    pub const default_file: mode_t = .{
-        .RUSR = true,
-        .WUSR = true,
-        .RGRP = true,
-        .WGRP = true,
-        .ROTH = true,
-        .WOTH = true,
-    };
-
-    pub const default_dir: mode_t = .{
-        .RUSR = true,
-        .WUSR = true,
-        .XUSR = true,
-        .RGRP = true,
-        .WGRP = true,
-        .XGRP = true,
-        .ROTH = true,
-        .WOTH = true,
-        .XOTH = true,
-    };
-};
 
 pub const timer_t = enum(c_int) {
     RELTIME = 0,

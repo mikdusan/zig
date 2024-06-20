@@ -65,7 +65,7 @@ fn Test(NS: type) type {
             defer tmp.cleanup();
 
             const file_path = try std.fs.path.joinZ(arena, &.{ tmp.path, "close_me.txt" });
-            const fd = try expect.sentinelNoError(-1, NS.open(file_path, .{ .CREAT = true }, NS.mode_t.default_file));
+            const fd = try expect.sentinelNoError(-1, NS.open(file_path, .{ .CREAT = true }, NS.default.file_mode));
             _ = try expect.sentinelNoError(-1, NS.close(fd));
             try expect.sentinelError(-1, .BADF, NS.close(fd));
         }
@@ -80,11 +80,11 @@ fn Test(NS: type) type {
             defer tmp.cleanup();
 
             const file_path = try std.fs.path.joinZ(arena, &.{ tmp.path, "create_me.txt" });
-            const fd = try expect.sentinelNoError(-1, NS.creat(file_path, NS.mode_t.default_file));
+            const fd = try expect.sentinelNoError(-1, NS.creat(file_path, NS.default.file_mode));
             _ = try expect.sentinelNoError(-1, NS.close(fd));
 
             const bogus_path = try std.fs.path.joinZ(arena, &.{ tmp.path, "bogus", "create_me.txt" });
-            try expect.sentinelError(-1, .NOENT, NS.creat(bogus_path, NS.mode_t.default_file));
+            try expect.sentinelError(-1, .NOENT, NS.creat(bogus_path, NS.default.file_mode));
         }
 
         test "fstat" {
@@ -300,10 +300,10 @@ fn Test(NS: type) type {
             defer tmp.cleanup();
 
             const dir_path = try std.fs.path.joinZ(arena, &.{ tmp.path, "create_me" });
-            _ = try expect.sentinelNoError(-1, NS.mkdir(dir_path, NS.mode_t.default_dir));
+            _ = try expect.sentinelNoError(-1, NS.mkdir(dir_path, NS.default.dir_mode));
 
             const bogus_path = try std.fs.path.joinZ(arena, &.{ tmp.path, "bogus", "create_me" });
-            try expect.sentinelError(-1, .NOENT, NS.mkdir(bogus_path, NS.mode_t.default_dir));
+            try expect.sentinelError(-1, .NOENT, NS.mkdir(bogus_path, NS.default.dir_mode));
         }
 
         test "mkdirat" {
@@ -316,10 +316,10 @@ fn Test(NS: type) type {
             defer tmp.cleanup();
 
             const dir_path = try std.fs.path.joinZ(arena, &.{ tmp.path, "create_me" });
-            _ = try expect.sentinelNoError(-1, NS.mkdirat(NS.AT.FDCWD, dir_path, NS.mode_t.default_dir));
+            _ = try expect.sentinelNoError(-1, NS.mkdirat(NS.AT.FDCWD, dir_path, NS.default.dir_mode));
 
             const bogus_path = try std.fs.path.joinZ(arena, &.{ tmp.path, "bogus", "create_me" });
-            try expect.sentinelError(-1, .NOENT, NS.mkdirat(NS.AT.FDCWD, bogus_path, NS.mode_t.default_dir));
+            try expect.sentinelError(-1, .NOENT, NS.mkdirat(NS.AT.FDCWD, bogus_path, NS.default.dir_mode));
         }
 
         test "mkfifo" {
@@ -332,10 +332,10 @@ fn Test(NS: type) type {
             defer tmp.cleanup();
 
             const dir_path = try std.fs.path.joinZ(arena, &.{ tmp.path, "create_me" });
-            _ = try expect.sentinelNoError(-1, NS.mkfifo(dir_path, NS.mode_t.default_file));
+            _ = try expect.sentinelNoError(-1, NS.mkfifo(dir_path, NS.default.file_mode));
 
             const bogus_path = try std.fs.path.joinZ(arena, &.{ tmp.path, "bogus", "create_me" });
-            try expect.sentinelError(-1, .NOENT, NS.mkfifo(bogus_path, NS.mode_t.default_file));
+            try expect.sentinelError(-1, .NOENT, NS.mkfifo(bogus_path, NS.default.file_mode));
         }
 
         test "mkfifoat" {
@@ -348,10 +348,10 @@ fn Test(NS: type) type {
             defer tmp.cleanup();
 
             const dir_path = try std.fs.path.joinZ(arena, &.{ tmp.path, "create_me" });
-            _ = try expect.sentinelNoError(-1, NS.mkfifoat(NS.AT.FDCWD, dir_path, NS.mode_t.default_file));
+            _ = try expect.sentinelNoError(-1, NS.mkfifoat(NS.AT.FDCWD, dir_path, NS.default.file_mode));
 
             const bogus_path = try std.fs.path.joinZ(arena, &.{ tmp.path, "bogus", "create_me" });
-            try expect.sentinelError(-1, .NOENT, NS.mkfifoat(NS.AT.FDCWD, bogus_path, NS.mode_t.default_file));
+            try expect.sentinelError(-1, .NOENT, NS.mkfifoat(NS.AT.FDCWD, bogus_path, NS.default.file_mode));
         }
 
         test "nanosleep" {
@@ -372,7 +372,7 @@ fn Test(NS: type) type {
             defer tmp.cleanup();
             const file_path = try std.fs.path.joinZ(arena, &.{ tmp.path, "create_me.txt" });
 
-            const fd = try expect.sentinelNoError(-1, NS.open(file_path, .{ .CREAT = true }, NS.mode_t.default_file));
+            const fd = try expect.sentinelNoError(-1, NS.open(file_path, .{ .CREAT = true }, NS.default.file_mode));
             _ = try expect.sentinelNoError(-1, NS.close(fd));
         }
 
@@ -387,14 +387,14 @@ fn Test(NS: type) type {
             defer tmp.cleanup();
             const file_path = try std.fs.path.joinZ(arena, &.{ tmp.path, "create_me.txt" });
 
-            const fd = try expect.sentinelNoError(-1, NS.openat(NS.AT.FDCWD, file_path, .{ .CREAT = true }, NS.mode_t.default_file));
+            const fd = try expect.sentinelNoError(-1, NS.openat(NS.AT.FDCWD, file_path, .{ .CREAT = true }, NS.default.file_mode));
             _ = try expect.sentinelNoError(-1, NS.close(fd));
         }
 
         test "read" {
             if (!comptime NS.hasFeature(.read)) return error.SkipZigTest;
 
-            const fd = try expect.sentinelNoError(-1, NS.open("/dev/zero", .{}, .{}));
+            const fd = try expect.sentinelNoError(-1, NS.open("/dev/zero", .{}, 0));
             var buf: [4]u8 = undefined;
             _ = try expect.sentinelNoError(-1, NS.read(fd, &buf, buf.len));
             _ = try expect.sentinelNoError(-1, NS.close(fd));
@@ -528,7 +528,7 @@ fn Test(NS: type) type {
         test "write" {
             if (!comptime NS.hasFeature(.write)) return error.SkipZigTest;
 
-            const fd = try expect.sentinelNoError(-1, NS.open("/dev/null", .{ .WRONLY = true }, .{}));
+            const fd = try expect.sentinelNoError(-1, NS.open("/dev/null", .{ .WRONLY = true }, 0));
             var buf: [4]u8 = .{ 0x0, 0x1, 0x2, 0x3 };
             _ = try expect.sentinelNoError(-1, NS.write(fd, &buf, buf.len));
             _ = try expect.sentinelNoError(-1, NS.close(fd));

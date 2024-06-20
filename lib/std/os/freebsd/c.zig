@@ -62,6 +62,7 @@ pub const __error = sys.__error;
 pub const blkcnt_t = sys.blkcnt_t;
 pub const blksize_t = sys.blksize_t;
 pub const clockid_t = sys.clockid_t;
+pub const default = sys.default;
 pub const dev_t = sys.dev_t;
 pub const dirent_t = sys.dirent_t;
 pub const errno = sys.errno;
@@ -83,7 +84,6 @@ pub const timer_t = sys.timer_t;
 pub const timespec_t = sys.timespec_t;
 pub const timeval_t = sys.timeval_t;
 pub const uid_t = sys.uid_t;
-
 
 pub const clock_getcpuclockid = if (sys.osintver < 10_000_000)
     struct {
