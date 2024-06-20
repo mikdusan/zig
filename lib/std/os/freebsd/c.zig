@@ -115,4 +115,4 @@ else
 const Feature = std.os.freebsd.Feature(@This());
 pub const hasFeature = Feature.hasFeature;
 pub const hasFeatures = Feature.hasFeatures;
-pub const missing_feature = Feature.missing_feature;
+pub const missing_feature = std.os.freebsd.missing_feature;

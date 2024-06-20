@@ -630,6 +630,18 @@ pub fn syscall2_errno(number: SYS, arg1: usize, arg2: usize) usize {
     return result;
 }
 
+pub fn syscall2_noerrno(number: SYS, arg1: usize, arg2: usize) usize {
+    return asm volatile (
+        \\ movq %%rcx, %%r10
+        \\ syscall
+        : [ret] "={rax}" (-> usize),
+        : [number] "{rax}" (@intFromEnum(number)),
+          [arg1] "{rdi}" (arg1),
+          [arg2] "{rsi}" (arg2),
+        : "rdx", "rcx", "r8", "r9", "r10", "r11", "cc", "memory"
+    );
+}
+
 pub fn syscall3_errno(number: SYS, arg1: usize, arg2: usize, arg3: usize) usize {
     const result = asm volatile (
         \\ movq %%rcx, %%r10

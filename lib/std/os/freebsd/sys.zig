@@ -17,6 +17,7 @@ pub const SYS = syscall.SYS;
 pub const syscall0_errno = syscall.syscall0_errno;
 pub const syscall1_errno = syscall.syscall1_errno;
 pub const syscall2_errno = syscall.syscall2_errno;
+pub const syscall2_noerrno = syscall.syscall2_noerrno;
 pub const syscall3_errno = syscall.syscall3_errno;
 pub const syscall3_noerrno = syscall.syscall3_noerrno;
 pub const syscall4_errno = syscall.syscall4_errno;
@@ -294,6 +295,48 @@ pub const getppid = if (@hasField(sys.SYS, "getppid"))
 else
     sys.missing_feature;
 
+pub const getpriority = if (@hasField(sys.SYS, "getpriority"))
+    struct {
+        fn getpriority(which: sys.priority.which_t, who: sys.id_t) c_int {
+            const rv = sys.syscall2_errno(
+                .getpriority,
+                @as(u32, @bitCast(@intFromEnum(which))),
+                @as(u32, @bitCast(who)),
+            );
+            return @bitCast(@as(u32, @truncate(rv)));
+        }
+    }.getpriority
+else
+    sys.missing_eeature;
+
+pub const getrlimit = if (@hasField(sys.SYS, "getrlimit@2"))
+    struct {
+        fn getrlimit(resource: sys.rlimit_t.resource_t, rlp: *sys.rlimit_t) c_int {
+            const rv = sys.syscall2_errno(
+                .@"getrlimit@2",
+                @as(u32, @bitCast(@intFromEnum(resource))),
+                @intFromPtr(rlp),
+            );
+            return @bitCast(@as(u32, @truncate(rv)));
+        }
+    }.getrlimit
+else
+    sys.missing_feature;
+
+pub const getrusage = if (@hasField(sys.SYS, "getrusage"))
+    struct {
+        fn getrusage(who: sys.rusage_t.who_t, usage: *sys.rusage_t) c_int {
+            const rv = sys.syscall2_errno(
+                .getrusage,
+                @as(u32, @bitCast(@intFromEnum(who))),
+                @intFromPtr(usage),
+            );
+            return @bitCast(@as(u32, @truncate(rv)));
+        }
+    }.getrusage
+else
+    sys.missing_feature;
+
 pub const getuid = if (@hasField(sys.SYS, "getuid"))
     struct {
         fn getuid() sys.uid_t {
@@ -339,6 +382,35 @@ pub const mkdirat = if (@hasField(sys.SYS, "mkdirat"))
             return @bitCast(@as(u32, @truncate(rv)));
         }
     }.mkdirat
+else
+    sys.missing_feature;
+
+pub const mkfifo = if (@hasField(sys.SYS, "mkfifo"))
+    struct {
+        fn mkfifo(path: [*:0]const u8, mode: sys.mode_t) c_int {
+            const rv = sys.syscall2_errno(
+                .mkfifo,
+                @intFromPtr(path),
+                @as(u16, @bitCast(mode)),
+            );
+            return @bitCast(@as(u32, @truncate(rv)));
+        }
+    }.mkfifo
+else
+    sys.missing_feature;
+
+pub const mkfifoat = if (@hasField(sys.SYS, "mkfifoat"))
+    struct {
+        fn mkfifoat(fd: sys.fd_t, path: [*:0]const u8, mode: sys.mode_t) c_int {
+            const rv = sys.syscall3_errno(
+                .mkfifoat,
+                @as(u32, @bitCast(fd)),
+                @intFromPtr(path),
+                @as(u16, @bitCast(mode)),
+            );
+            return @bitCast(@as(u32, @truncate(rv)));
+        }
+    }.mkfifoat
 else
     sys.missing_feature;
 
@@ -449,6 +521,35 @@ pub const setgid = if (@hasField(sys.SYS, "setgid"))
             return @bitCast(@as(u32, @truncate(rv)));
         }
     }.setgid
+else
+    sys.missing_feature;
+
+pub const setpriority = if (@hasField(sys.SYS, "setpriority"))
+    struct {
+        fn setpriority(which: sys.priority.which_t, who: sys.id_t, prio: c_int) c_int {
+            const rv = sys.syscall3_errno(
+                .setpriority,
+                @as(u32, @bitCast(@intFromEnum(which))),
+                @as(u32, @bitCast(who)),
+                @as(u32, @bitCast(prio)),
+            );
+            return @bitCast(@as(u32, @truncate(rv)));
+        }
+    }.setpriority
+else
+    sys.missing_eeature;
+
+pub const setrlimit = if (@hasField(sys.SYS, "setrlimit@2"))
+    struct {
+        fn setrlimit(resource: sys.rlimit_t.resource_t, rlp: *const sys.rlimit_t) c_int {
+            const rv = sys.syscall2_errno(
+                .@"setrlimit@2",
+                @as(u32, @bitCast(@intFromEnum(resource))),
+                @intFromPtr(rlp),
+            );
+            return @bitCast(@as(u32, @truncate(rv)));
+        }
+    }.setrlimit
 else
     sys.missing_feature;
 
@@ -911,4 +1012,4 @@ pub const timeval_t = extern struct {
 const Feature = std.os.freebsd.Feature(@This());
 pub const hasFeature = Feature.hasFeature;
 pub const hasFeatures = Feature.hasFeatures;
-pub const missing_feature = Feature.missing_feature;
+pub const missing_feature = std.os.freebsd.missing_feature;

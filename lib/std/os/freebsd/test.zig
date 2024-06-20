@@ -9,6 +9,7 @@ const testing = std.testing;
 fn Test(NS: type) type {
     return struct {
         const invalid_clockid: NS.clockid_t = @enumFromInt(std.math.maxInt(@typeInfo(NS.clockid_t).Enum.tag_type));
+        const invalid_priority: c_int = std.math.maxInt(c_int);
 
         test "clock_getcpuclockid" {
             if (!comptime NS.hasFeature(.clock_getcpuclockid)) return error.SkipZigTest;
@@ -216,11 +217,18 @@ fn Test(NS: type) type {
         test "getpriority" {
             if (!comptime NS.hasFeature(.getpriority)) return error.SkipZigTest;
 
-            NS.__error().* = .SUCCESS;
-            const pr = NS.getpriority(.PROCESS, 0);
-            try expect.errno(.SUCCESS);
-            try testing.expect(pr >= NS.priority.MIN);
-            try testing.expect(pr <= NS.priority.MAX);
+            {
+                NS.__error().* = .SUCCESS;
+                const pr = NS.getpriority(.PROCESS, 0);
+                try expect.errno(.SUCCESS);
+                try testing.expect(pr >= NS.priority.MIN);
+                try testing.expect(pr <= NS.priority.MAX);
+            }
+            {
+                NS.__error().* = .SUCCESS;
+                _ = NS.getpriority(.PROCESS, invalid_priority);
+                try expect.errno(.SRCH);
+            }
         }
 
         test "getrlimit" {
