@@ -2,9 +2,8 @@
 const std = @import("../../../std.zig");
 const builtin = @import("builtin");
 const c = std.os.freebsd.c;
-const testing = std.testing;
-
 const expect = std.os.freebsd.Expect(c);
+const testing = std.testing;
 
 test "closedir" {
     if (!comptime c.hasFeature(.closedir)) return error.SkipZigTest;

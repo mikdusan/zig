@@ -724,8 +724,8 @@ pub const priority = struct {
         _,
     };
 
-    pub const MAX = 20;
-    pub const MIN = -20;
+    pub const MAX: c_int = 20;
+    pub const MIN: c_int = -20;
 };
 
 pub const rlimit_t = extern struct {
