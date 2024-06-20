@@ -98,6 +98,14 @@ fn Test(NS: type) type {
             _ = try expectNoError(-1, NS.dirfd(dir));
         }
 
+        test "fdclosedir" {
+            if (!comptime NS.hasFeature(.fdclosedir)) return error.SkipZigTest;
+
+            const dir = NS.opendir(".") orelse return error.TestExpectedNoError;
+            const fd = try expectNoError(-1, NS.fdclosedir(dir));
+            _ = try expectNoError(-1, NS.close(fd));
+        }
+
         test "fdopendir" {
             if (!comptime NS.hasFeature(.fdopendir)) return error.SkipZigTest;
 
@@ -194,6 +202,30 @@ fn Test(NS: type) type {
             if (!comptime NS.hasFeature(.getppid)) return error.SkipZigTest;
             // always successful
             _ = NS.getppid();
+        }
+
+        test "getpriority" {
+            if (!comptime NS.hasFeature(.getpriority)) return error.SkipZigTest;
+
+            NS.__error().* = .SUCCESS;
+            const pr = NS.getpriority(.PROCESS, 0);
+            try expectNoErrno();
+            try testing.expect(pr >= NS.priority_t.MIN);
+            try testing.expect(pr <= NS.priority_t.MAX);
+        }
+
+        test "getrlimit" {
+            if (!comptime NS.hasFeature(.getrlimit)) return error.SkipZigTest;
+
+            var limit: NS.rlimit_t = undefined;
+            _ = try expectNoError(-1, NS.getrlimit(.NPROC, &limit));
+        }
+
+        test "getrusage" {
+            if (!comptime NS.hasFeature(.getrusage)) return error.SkipZigTest;
+
+            var usage: NS.rusage_t = undefined;
+            _ = try expectNoError(-1, NS.getrusage(.SELF, &usage));
         }
 
         test "getuid" {
@@ -391,6 +423,44 @@ fn Test(NS: type) type {
             if (egid != 0) try expectError(-1, .PERM, NS.setegid(0));
         }
 
+        test "setpriority" {
+            if (!comptime NS.hasFeature(.setpriority)) return error.SkipZigTest;
+
+            NS.__error().* = .SUCCESS;
+            const pr0 = NS.getpriority(.PROCESS, 0);
+            try expectNoErrno();
+
+            const pr1: @TypeOf(pr0) = @min(pr0 + 1, NS.priority_t.MAX);
+            _ = try expectNoError(-1, NS.setpriority(.PROCESS, 0, pr1));
+
+            NS.__error().* = .SUCCESS;
+            const pr2 = NS.getpriority(.PROCESS, 0);
+            try expectNoErrno();
+            try testing.expectEqual(pr1, pr2);
+
+            // lowering priority fails if not super-user
+            if (NS.geteuid() != 0) _ = try expectError(-1, .ACCES, NS.setpriority(.PROCESS, 0, pr0));
+        }
+
+        test "setrlimit" {
+            if (!comptime NS.hasFeature(.setrlimit)) return error.SkipZigTest;
+
+            var saved: NS.rlimit_t = undefined;
+            _ = try expectNoError(-1, NS.getrlimit(.NPROC, &saved));
+
+            const changed: NS.rlimit_t = .{
+                .cur = saved.cur - 1,
+                .max = saved.max,
+            };
+            _ = try expectNoError(-1, NS.setrlimit(.NPROC, &changed));
+
+            var tmp: NS.rlimit_t = undefined;
+            _ = try expectNoError(-1, NS.getrlimit(.NPROC, &tmp));
+            try testing.expectEqual(tmp.cur, changed.cur);
+
+            _ = try expectNoError(-1, NS.setrlimit(.NPROC, &saved));
+        }
+
         test "setuid" {
             if (!comptime NS.hasFeature(.setuid)) return error.SkipZigTest;
             const euid = try expectNoError(-1, NS.geteuid());
@@ -417,6 +487,22 @@ fn Test(NS: type) type {
             _ = try expectNoError(-1, NS.write(fd, &buf, buf.len));
             _ = try expectNoError(-1, NS.close(fd));
             try expectError(-1, .BADF, NS.write(-42, &buf, buf.len));
+        }
+
+        fn expectErrno(expected_ecode: NS.E) !void {
+            const ec = NS.errno();
+            if (ec != expected_ecode) {
+                print("expected errno {s}, found {s}\n", .{ @tagName(expected_ecode), @tagName(ec) });
+                return error.TestExpectedNoError;
+            }
+        }
+
+        fn expectNoErrno() !void {
+            const ec = NS.errno();
+            if (ec != .SUCCESS) {
+                print("expected no errno, found {s}\n", .{ @tagName(NS.errno()) });
+                return error.TestExpectedNoError;
+            }
         }
 
         // use with return convention where:

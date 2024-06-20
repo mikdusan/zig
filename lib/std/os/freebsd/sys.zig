@@ -313,6 +313,7 @@ pub const nanosleep = if (@hasField(sys.SYS, "clock_nanosleep"))
                 @intFromPtr(rqtp),
                 @intFromPtr(rmtp),
             );
+            if (rv != 0) sys.__error().* = @enumFromInt(rv);
             return @bitCast(@as(u32, @truncate(rv)));
         }
     }.nanosleep
