@@ -151,6 +151,36 @@ pub const clock_settime = if (@hasField(sys.SYS, "clock_settime"))
 else
     sys.missing_feature;
 
+pub const fstat = if (@hasField(sys.SYS, "fstat@12"))
+    struct {
+        fn fstat(fd: sys.fd_t, info: *sys.stat_t) c_int {
+            const rv = sys.syscall2_errno(
+                .@"fstat@12",
+                @as(u32, @bitCast(fd)),
+                @intFromPtr(info),
+            );
+            return @bitCast(@as(u32, @truncate(rv)));
+        }
+    }.fstat
+else
+    sys.missing_feature;
+
+pub const fstatat = if (@hasField(sys.SYS, "fstatat@12"))
+    struct {
+        fn fstatat(fd: sys.fd_t, noalias path: [*:0]const u8, noalias info: *sys.stat_t, flags: sys.AT) c_int {
+            const rv = sys.syscall4_errno(
+                .@"fstatat@12",
+                @as(u32, @bitCast(fd)),
+                @intFromPtr(path),
+                @intFromPtr(info),
+                @as(u32, @bitCast(flags)),
+            );
+            return @bitCast(@as(u32, @truncate(rv)));
+        }
+    }.fstatat
+else
+    sys.missing_feature;
+
 pub const getdents = if (@hasField(sys.SYS, "getdirentries@12"))
     struct {
         fn getdents(fd: sys.fd_t, buf: [*]u8, len: usize) isize {
@@ -271,6 +301,15 @@ pub const getuid = if (@hasField(sys.SYS, "getuid"))
             return @truncate(rv);
         }
     }.getuid
+else
+    sys.missing_feature;
+
+pub const lstat = if (hasFeature(.fstatat))
+    struct {
+        fn lstat(noalias path: [*:0]const u8, noalias info: *sys.stat_t) c_int {
+            return fstatat(sys.AT.FDCWD, path, info, .{ .SYMLINK_NOFOLLOW = true });
+        }
+    }.lstat
 else
     sys.missing_feature;
 
@@ -423,6 +462,15 @@ pub const setuid = if (@hasField(sys.SYS, "setuid"))
 else
     sys.missing_feature;
 
+pub const stat = if (hasFeature(.fstatat))
+    struct {
+        fn stat(noalias path: [*:0]const u8, noalias info: *sys.stat_t) c_int {
+            return fstatat(sys.AT.FDCWD, path, info, .{});
+        }
+    }.stat
+else
+    sys.missing_feature;
+
 pub const symlink = if (@hasField(sys.SYS, "symlink"))
     struct {
         fn symlink(target: [*:0]const u8, linkpath: [*:0]const u8) c_int {
@@ -486,15 +534,15 @@ pub const uid_t = u32;
 
 pub const AT = packed struct(u32) {
     // zig fmt: off
-    _1: u6 = 0,
+    _1: u8 = 0,
     EACCESS:          bool = false,
     SYMLINK_NOFOLLOW: bool = false,
     SYMLINK_FOLLOW:   bool = false,
     REMOVEDIR:        bool = false,
-    _11: u1 = 0,
+    _13: u1 = 0,
     RESOLVE_BENEATH:  bool = false,
     EMPTY_PATH:       bool = false,
-    _14: u19 = 0,
+    _16: u17 = 0,
     // zig fmt: on
 
     pub const FDCWD: sys.fd_t = -100;
