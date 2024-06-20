@@ -25,6 +25,8 @@ pub extern "c" fn getppid() c.pid_t;
 pub extern "c" fn getuid() c.uid_t;
 pub extern "c" fn mkdir(path: [*:0]const u8, mode: c.mode_t) c_int;
 pub extern "c" fn mkdirat(fd: c.fd_t, path: [*:0]const u8, mode: c.mode_t) c_int;
+pub extern "c" fn mkfifo(path: [*:0]const u8, mode: c.mode_t) c_int;
+pub extern "c" fn mkfifoat(fd: c.fd_t, path: [*:0]const u8, mode: c.mode_t) c_int;
 pub extern "c" fn nanosleep(rqtp: *const timespec_t, rmtp: ?*c.timespec_t) c_int;
 pub extern "c" fn open(path: [*:0]const u8, flags: c.O, mode: c.mode_t) c.fd_t;
 pub extern "c" fn openat(fd: c.fd_t, path: [*:0]const u8, flags: c.O, mode: c.mode_t) c.fd_t;

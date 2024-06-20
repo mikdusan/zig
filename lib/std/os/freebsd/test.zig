@@ -16,14 +16,15 @@ fn Test(NS: type) type {
             if (!comptime NS.hasFeature(.clock_getcpuclockid)) return error.SkipZigTest;
 
             var id: NS.clockid_t = undefined;
-            _ = try invExpectNoError(NS.clock_getcpuclockid(0, &id));
+            _ = try directExpectNoError(NS.clock_getcpuclockid(0, &id));
+            _ = try directExpectError(.SRCH, NS.clock_getcpuclockid(-1, &id));
         }
 
         test "clock_getres" {
             if (!comptime NS.hasFeature(.clock_getres)) return error.SkipZigTest;
 
             var tp: NS.timespec_t = undefined;
-            _ = try invExpectNoError(NS.clock_getres(.MONOTONIC, &tp));
+            _ = try expectNoError(-1, NS.clock_getres(.MONOTONIC, &tp));
             try testing.expect(tp.sec > 0 or tp.nsec > 0);
         }
 
@@ -31,7 +32,7 @@ fn Test(NS: type) type {
             if (!comptime NS.hasFeature(.clock_gettime)) return error.SkipZigTest;
 
             var tp: NS.timespec_t = undefined;
-            _ = try invExpectNoError(NS.clock_gettime(.MONOTONIC, &tp));
+            _ = try expectNoError(-1, NS.clock_gettime(.MONOTONIC, &tp));
             try testing.expect(tp.sec > 0 or tp.nsec > 0);
         }
 
@@ -47,7 +48,7 @@ fn Test(NS: type) type {
             // do not run this test as root
             if (NS.geteuid() == 0) return error.SkipZigTest;
 
-            _ = try invExpectError(.PERM, NS.clock_settime(.MONOTONIC, &.{ .sec = 0, .nsec = 1000 }));
+            _ = try expectError(-1, .PERM, NS.clock_settime(.MONOTONIC, &.{ .sec = 0, .nsec = 1000 }));
         }
 
         test "close" {
@@ -95,6 +96,14 @@ fn Test(NS: type) type {
             const dir = NS.opendir(".") orelse return error.TestExpectedNoError;
             defer _ = NS.closedir(dir);
             _ = try expectNoError(-1, NS.dirfd(dir));
+        }
+
+        test "fdopendir" {
+            if (!comptime NS.hasFeature(.fdopendir)) return error.SkipZigTest;
+
+            const fd = try expectNoError(-1, NS.open(".", .{}, .{}));
+            defer _ = NS.close(fd);
+            _ = try expectNoError(null, NS.fdopendir(fd));
         }
 
         test "getdents" {
@@ -243,6 +252,38 @@ fn Test(NS: type) type {
             try expectError(-1, .NOENT, NS.mkdirat(NS.AT.FDCWD, bogus_path, NS.mode_t.default_dir));
         }
 
+        test "mkfifo" {
+            if (!comptime NS.hasFeature(.mkfifo)) return error.SkipZigTest;
+
+            var arena_s = std.heap.ArenaAllocator.init(testing.allocator);
+            defer arena_s.deinit();
+            const arena = arena_s.allocator();
+            var tmp = try TmpDir.init(arena);
+            defer tmp.cleanup();
+
+            const dir_path = try std.fs.path.joinZ(arena, &.{ tmp.path, "create_me" });
+            _ = try expectNoError(-1, NS.mkfifo(dir_path, NS.mode_t.default_file));
+
+            const bogus_path = try std.fs.path.joinZ(arena, &.{ tmp.path, "bogus", "create_me" });
+            try expectError(-1, .NOENT, NS.mkfifo(bogus_path, NS.mode_t.default_file));
+        }
+
+        test "mkfifoat" {
+            if (!comptime NS.hasFeature(.mkfifoat)) return error.SkipZigTest;
+
+            var arena_s = std.heap.ArenaAllocator.init(testing.allocator);
+            defer arena_s.deinit();
+            const arena = arena_s.allocator();
+            var tmp = try TmpDir.init(arena);
+            defer tmp.cleanup();
+
+            const dir_path = try std.fs.path.joinZ(arena, &.{ tmp.path, "create_me" });
+            _ = try expectNoError(-1, NS.mkfifoat(NS.AT.FDCWD, dir_path, NS.mode_t.default_file));
+
+            const bogus_path = try std.fs.path.joinZ(arena, &.{ tmp.path, "bogus", "create_me" });
+            try expectError(-1, .NOENT, NS.mkfifoat(NS.AT.FDCWD, bogus_path, NS.mode_t.default_file));
+        }
+
         test "nanosleep" {
             if (!comptime NS.hasFeature(.nanosleep)) return error.SkipZigTest;
 
@@ -329,13 +370,6 @@ fn Test(NS: type) type {
             try testing.expectEqual(pos0, pos1);
         }
 
-        test "setuid" {
-            if (!comptime NS.hasFeature(.setuid)) return error.SkipZigTest;
-            const euid = try expectNoError(-1, NS.geteuid());
-            _ = try expectNoError(-1, NS.setuid(euid));
-            if (euid != 0) try expectError(-1, .PERM, NS.setuid(0));
-        }
-
         test "seteuid" {
             if (!comptime NS.hasFeature(.seteuid)) return error.SkipZigTest;
             const euid = try expectNoError(-1, NS.geteuid());
@@ -355,6 +389,13 @@ fn Test(NS: type) type {
             const egid = try expectNoError(-1, NS.getegid());
             _ = try expectNoError(-1, NS.setegid(egid));
             if (egid != 0) try expectError(-1, .PERM, NS.setegid(0));
+        }
+
+        test "setuid" {
+            if (!comptime NS.hasFeature(.setuid)) return error.SkipZigTest;
+            const euid = try expectNoError(-1, NS.geteuid());
+            _ = try expectNoError(-1, NS.setuid(euid));
+            if (euid != 0) try expectError(-1, .PERM, NS.setuid(0));
         }
 
         test "telldir" {
@@ -382,12 +423,12 @@ fn Test(NS: type) type {
         //   - error rv == -1 and errno
         fn expectError(expected_error_sentinel: anytype, expected_ecode: NS.E, rv: anytype) !void {
             if (rv != expected_error_sentinel) {
-                print("expected error sentinel {}, found {}\n", .{ expected_error_sentinel, rv });
+                print("expected error sentinel {}, found {any}\n", .{ expected_error_sentinel, rv });
                 return error.TestExpectedError;
             }
             const ec = NS.errno();
             if (ec != expected_ecode) {
-                print("expected error {}, found {}\n", .{ expected_ecode, ec });
+                print("expected error {s}, found {s}\n", .{ @tagName(expected_ecode), @tagName(ec) });
                 return error.TestExpectedError;
             }
         }
@@ -396,45 +437,21 @@ fn Test(NS: type) type {
         //   - error rv == -1 and errno
         fn expectNoError(unexpected_error_sentinel: anytype, rv: anytype) !@TypeOf(rv) {
             if (rv == unexpected_error_sentinel) {
-                print("expected no error sentinel {}, found {} and errno={s}\n", .{ unexpected_error_sentinel, rv, @tagName(NS.errno()) });
+                print("expected no error, found {any} and errno={s}\n", .{ rv, @tagName(NS.errno()) });
                 return error.TestExpectedNoError;
             }
             return rv;
         }
 
-        // use with return convention where:
-        //   - success rv == 0
-        //   - otherwise errno
-        fn invExpectError(expected_ecode: NS.E, rv: anytype) !void {
-            if (rv == 0) {
-                print("expected sentinel != 0, found {} and errno={s}\n", .{ rv, @tagName(NS.errno()) });
-                return error.TestExpectedNoError;
-            }
-            const ec = NS.errno();
-            if (ec != expected_ecode) {
-                print("expected errno {}, found {}\n", .{ expected_ecode, ec });
-                return error.TestExpectedError;
-            }
-        }
-
-        // use with return convention where:
-        //   - success rv == 0
-        //   - otherwise errno
-        fn invExpectNoError(rv: anytype) !@TypeOf(rv) {
-            if (rv != 0) {
-                print("expected sentinel == 0, found {} and errno={s}\n", .{ rv, @tagName(NS.errno()) });
-                return error.TestExpectedNoError;
-            }
-            return rv;
-        }
 
         // use with return convention where:
         //   - success rv == 0
         //   - otherwise rv is the error code
         fn directExpectError(expected_ecode: NS.E, rv: anytype) !void {
-            if (@typeInfo(@TypeOf(rv)) == .Pointer) {
+            const info = @typeInfo(@TypeOf(rv));
+            if (info == .Optional and @typeInfo(info.Optional.child) == .Pointer) {
                 if (rv == null) {
-                    print("expected sentinel != null, found {}\n", .{rv});
+                    print("expected sentinel != null, found {?}\n", .{rv});
                     return error.TestExpectedError;
                 }
             } else {
@@ -443,8 +460,9 @@ fn Test(NS: type) type {
                     return error.TestExpectedError;
                 }
             }
-            if (rv != expected_ecode) {
-                print("expected error {}, found {}\n", .{ expected_ecode, rv });
+            if (rv != @intFromEnum(expected_ecode)) {
+                const ec: NS.E = @enumFromInt(rv);
+                print("expected error {s}, found {s}\n", .{ @tagName(expected_ecode), @tagName(ec) });
                 return error.TestExpectedError;
             }
         }
@@ -453,17 +471,16 @@ fn Test(NS: type) type {
         //   - success rv == 0
         //   - otherwise rv is the error code
         fn directExpectNoError(rv: anytype) !@TypeOf(rv) {
-//@compileLog(@TypeOf(rv));
             const info = @typeInfo(@TypeOf(rv));
             if (info == .Optional and @typeInfo(info.Optional.child) == .Pointer) {
                 if (rv != null) {
-                    print("expected sentinel == null, found {}\n", .{ rv });
+                    print("expected sentinel == null, found {any}\n", .{ rv });
                     return error.TestExpectedNoError;
                 }
             } else {
                 if (rv != 0) {
                     const ec: NS.E = @enumFromInt(rv);
-                    print("expected sentinel == 0, found {} and direct errno={s}\n", .{ rv, @tagName(ec) });
+                    print("expected sentinel == 0, found {s}\n", .{ @tagName(ec) });
                     return error.TestExpectedNoError;
                 }
             }

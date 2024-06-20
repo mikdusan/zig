@@ -656,6 +656,19 @@ pub fn syscall3_errno(number: SYS, arg1: usize, arg2: usize, arg3: usize) usize 
     return result;
 }
 
+pub fn syscall3_noerrno(number: SYS, arg1: usize, arg2: usize, arg3: usize) usize {
+    return asm volatile (
+        \\ movq %%rcx, %%r10
+        \\ syscall
+        : [ret] "={rax}" (-> usize),
+        : [number] "{rax}" (@intFromEnum(number)),
+          [arg1] "{rdi}" (arg1),
+          [arg2] "{rsi}" (arg2),
+          [arg3] "{rdx}" (arg3),
+        : "rcx", "r8", "r9", "r10", "r11", "cc", "memory"
+    );
+}
+
 pub fn syscall4_errno(number: SYS, arg1: usize, arg2: usize, arg3: usize, arg4: usize) usize {
     const result = asm volatile (
         \\ movq %%rcx, %%r10
@@ -684,7 +697,7 @@ pub fn syscall4_errno(number: SYS, arg1: usize, arg2: usize, arg3: usize, arg4: 
 }
 
 pub fn syscall4_noerrno(number: SYS, arg1: usize, arg2: usize, arg3: usize, arg4: usize) usize {
-    const rv = asm volatile (
+    return asm volatile (
         \\ movq %%rcx, %%r10
         \\ syscall
         : [ret] "={rax}" (-> usize),
@@ -695,7 +708,6 @@ pub fn syscall4_noerrno(number: SYS, arg1: usize, arg2: usize, arg3: usize, arg4
           [arg4] "{rcx}" (arg4),
         : "r8", "r9", "r10", "r11", "cc", "memory"
     );
-    return rv;
 }
 
 pub fn syscall5_errno(number: SYS, arg1: usize, arg2: usize, arg3: usize, arg4: usize, arg5: usize) usize {

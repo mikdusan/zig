@@ -18,6 +18,7 @@ pub const syscall0_errno = syscall.syscall0_errno;
 pub const syscall1_errno = syscall.syscall1_errno;
 pub const syscall2_errno = syscall.syscall2_errno;
 pub const syscall3_errno = syscall.syscall3_errno;
+pub const syscall3_noerrno = syscall.syscall3_noerrno;
 pub const syscall4_errno = syscall.syscall4_errno;
 pub const syscall4_noerrno = syscall.syscall4_noerrno;
 pub const syscall5_errno = syscall.syscall5_errno;
@@ -80,7 +81,7 @@ else
 pub const clock_getcpuclockid = if (@hasField(sys.SYS, "clock_getcpuclockid2"))
     struct {
         fn clock_getcpuclockid(pid: sys.pid_t, clockid: *sys.clockid_t) c_int {
-            const rv = sys.syscall3_errno(
+            const rv = sys.syscall3_noerrno(
                 .clock_getcpuclockid2,
                 @as(u32, @bitCast(pid)),
                 @as(u32, @bitCast(@intFromEnum(sys.cpuclock_which_t.PID))),
@@ -620,7 +621,6 @@ pub const clockid_t = enum(i32) {
     THREAD_CPUTIME_ID  = 14,
     PROCESS_CPUTIME_ID = 15,
     // zig fmt: on
-    _,
 };
 
 pub const cpuclock_which_t = enum(c_int) {
