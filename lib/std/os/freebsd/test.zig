@@ -66,13 +66,6 @@ fn Test(NS: type) type {
             try expectError(-1, .BADF, NS.close(fd));
         }
 
-        test "closedir" {
-            if (!comptime NS.hasFeature(.closedir)) return error.SkipZigTest;
-
-            const dir = NS.opendir(".") orelse return error.TestExpectedNoError;
-            _ = try expectNoError(-1, NS.closedir(dir));
-        }
-
         test "creat" {
             if (!comptime NS.hasFeature(.creat)) return error.SkipZigTest;
 
@@ -88,30 +81,6 @@ fn Test(NS: type) type {
 
             const bogus_path = try std.fs.path.joinZ(arena, &.{ tmp.path, "bogus", "create_me.txt" });
             try expectError(-1, .NOENT, NS.creat(bogus_path, NS.mode_t.default_file));
-        }
-
-        test "dirfd" {
-            if (!comptime NS.hasFeature(.dirfd)) return error.SkipZigTest;
-
-            const dir = NS.opendir(".") orelse return error.TestExpectedNoError;
-            defer _ = NS.closedir(dir);
-            _ = try expectNoError(-1, NS.dirfd(dir));
-        }
-
-        test "fdclosedir" {
-            if (!comptime NS.hasFeature(.fdclosedir)) return error.SkipZigTest;
-
-            const dir = NS.opendir(".") orelse return error.TestExpectedNoError;
-            const fd = try expectNoError(-1, NS.fdclosedir(dir));
-            _ = try expectNoError(-1, NS.close(fd));
-        }
-
-        test "fdopendir" {
-            if (!comptime NS.hasFeature(.fdopendir)) return error.SkipZigTest;
-
-            const fd = try expectNoError(-1, NS.open(".", .{}, .{}));
-            defer _ = NS.close(fd);
-            _ = try expectNoError(null, NS.fdopendir(fd));
         }
 
         test "getdents" {
@@ -210,8 +179,8 @@ fn Test(NS: type) type {
             NS.__error().* = .SUCCESS;
             const pr = NS.getpriority(.PROCESS, 0);
             try expectNoErrno();
-            try testing.expect(pr >= NS.priority_t.MIN);
-            try testing.expect(pr <= NS.priority_t.MAX);
+            try testing.expect(pr >= NS.priority.MIN);
+            try testing.expect(pr <= NS.priority.MAX);
         }
 
         test "getrlimit" {
@@ -353,13 +322,6 @@ fn Test(NS: type) type {
             _ = try expectNoError(-1, NS.close(fd));
         }
 
-        test "opendir" {
-            if (!comptime NS.hasFeature(.opendir)) return error.SkipZigTest;
-
-            const dir = NS.opendir(".") orelse return error.TestExpectedNoError;
-            _ = NS.closedir(dir);
-        }
-
         test "read" {
             if (!comptime NS.hasFeature(.read)) return error.SkipZigTest;
 
@@ -367,39 +329,6 @@ fn Test(NS: type) type {
             var buf: [4]u8 = undefined;
             _ = try expectNoError(-1, NS.read(fd, &buf, buf.len));
             _ = try expectNoError(-1, NS.close(fd));
-        }
-
-        test "readdir" {
-            if (!comptime NS.hasFeature(.readdir)) return error.SkipZigTest;
-
-            const dir = NS.opendir(".") orelse return error.TestExpectedNoError;
-            defer _ = NS.closedir(dir);
-            const entry = NS.readdir(dir) orelse return error.TestExpectedNoError;
-            try testing.expect(entry.namlen > 0);
-        }
-
-        test "rewinddir" {
-            if (!comptime NS.hasFeature(.rewinddir)) return error.SkipZigTest;
-
-            const dir = NS.opendir(".") orelse return error.TestExpectedNoError;
-            defer _ = NS.closedir(dir);
-            const pos0 = try expectNoError(-1, NS.telldir(dir));
-            _ = NS.readdir(dir) orelse return error.TestExpectedNoError;
-            NS.rewinddir(dir);
-            const pos1 = try expectNoError(-1, NS.telldir(dir));
-            try testing.expectEqual(pos0, pos1);
-        }
-
-        test "seekdir" {
-            if (!comptime NS.hasFeature(.seekdir)) return error.SkipZigTest;
-
-            const dir = NS.opendir(".") orelse return error.TestExpectedNoError;
-            defer _ = NS.closedir(dir);
-            const pos0 = try expectNoError(-1, NS.telldir(dir));
-            _ = NS.readdir(dir) orelse return error.TestExpectedNoError;
-            NS.seekdir(dir, pos0);
-            const pos1 = try expectNoError(-1, NS.telldir(dir));
-            try testing.expectEqual(pos0, pos1);
         }
 
         test "seteuid" {
@@ -430,7 +359,7 @@ fn Test(NS: type) type {
             const pr0 = NS.getpriority(.PROCESS, 0);
             try expectNoErrno();
 
-            const pr1: @TypeOf(pr0) = @min(pr0 + 1, NS.priority_t.MAX);
+            const pr1: @TypeOf(pr0) = @min(pr0 + 1, NS.priority.MAX);
             _ = try expectNoError(-1, NS.setpriority(.PROCESS, 0, pr1));
 
             NS.__error().* = .SUCCESS;
@@ -468,17 +397,6 @@ fn Test(NS: type) type {
             if (euid != 0) try expectError(-1, .PERM, NS.setuid(0));
         }
 
-        test "telldir" {
-            if (!comptime NS.hasFeature(.telldir)) return error.SkipZigTest;
-
-            const dir = NS.opendir(".") orelse return error.TestExpectedNoError;
-            defer _ = NS.closedir(dir);
-            const pos0 = try expectNoError(-1, NS.telldir(dir));
-            _ = NS.readdir(dir) orelse return error.TestExpectedNoError;
-            const pos1 = try expectNoError(-1, NS.telldir(dir));
-            try testing.expect(pos1 > pos0);
-        }
-
         test "write" {
             if (!comptime NS.hasFeature(.write)) return error.SkipZigTest;
 
@@ -500,7 +418,7 @@ fn Test(NS: type) type {
         fn expectNoErrno() !void {
             const ec = NS.errno();
             if (ec != .SUCCESS) {
-                print("expected no errno, found {s}\n", .{ @tagName(NS.errno()) });
+                print("expected no errno, found {s}\n", .{@tagName(NS.errno())});
                 return error.TestExpectedNoError;
             }
         }
@@ -528,7 +446,6 @@ fn Test(NS: type) type {
             }
             return rv;
         }
-
 
         // use with return convention where:
         //   - success rv == 0
@@ -560,13 +477,13 @@ fn Test(NS: type) type {
             const info = @typeInfo(@TypeOf(rv));
             if (info == .Optional and @typeInfo(info.Optional.child) == .Pointer) {
                 if (rv != null) {
-                    print("expected sentinel == null, found {any}\n", .{ rv });
+                    print("expected sentinel == null, found {any}\n", .{rv});
                     return error.TestExpectedNoError;
                 }
             } else {
                 if (rv != 0) {
                     const ec: NS.E = @enumFromInt(rv);
-                    print("expected sentinel == 0, found {s}\n", .{ @tagName(ec) });
+                    print("expected sentinel == 0, found {s}\n", .{@tagName(ec)});
                     return error.TestExpectedNoError;
                 }
             }

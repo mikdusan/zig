@@ -621,6 +621,7 @@ pub const clockid_t = enum(i32) {
     SECOND             = 13,
     THREAD_CPUTIME_ID  = 14,
     PROCESS_CPUTIME_ID = 15,
+    _,
     // zig fmt: on
 };
 
@@ -712,9 +713,10 @@ pub const mode_t = packed struct(u16) {
 pub const timer_t = enum(c_int) {
     RELTIME = 0,
     ABSTIME = 1,
+    _,
 };
 
-pub const priority_t = struct {
+pub const priority = struct {
     pub const which_t = enum(c_int) {
         PROCESS = 0,
         PGRP = 1,
@@ -778,6 +780,7 @@ pub const rusage_t = extern struct {
         SELF = 0,
         CHILDREN = -1,
         THREAD = 1,
+        _,
     };
 };
 
