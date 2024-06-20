@@ -86,6 +86,43 @@ fn Test(NS: type) type {
             try expect.sentinelError(-1, .NOENT, NS.creat(bogus_path, NS.mode_t.default_file));
         }
 
+        test "fstat" {
+            if (!comptime NS.hasFeature(.fstat)) return error.SkipZigTest;
+
+            var arena_s = std.heap.ArenaAllocator.init(testing.allocator);
+            defer arena_s.deinit();
+            const arena = arena_s.allocator();
+            var tmp = try TmpDir.init(arena);
+            defer tmp.cleanup();
+
+            const basename = "tiny.txt";
+            const file = try tmp.dir.createFile(basename, .{});
+            defer file.close();
+            try file.writeAll("12345");
+
+            var info: NS.stat_t = undefined;
+            _ = try expect.sentinelNoError(-1, NS.fstat(file.handle, &info));
+            try testing.expectEqual(5, info.size);
+        }
+
+        test "fstatat" {
+            if (!comptime NS.hasFeature(.fstatat)) return error.SkipZigTest;
+
+            var arena_s = std.heap.ArenaAllocator.init(testing.allocator);
+            defer arena_s.deinit();
+            const arena = arena_s.allocator();
+            var tmp = try TmpDir.init(arena);
+            defer tmp.cleanup();
+
+            const basename = "tiny.txt";
+            const file = try tmp.dir.createFile(basename, .{});
+            defer file.close();
+            try file.writeAll("12345");
+
+            var info: NS.stat_t = undefined;
+            _ = try expect.sentinelNoError(-1, NS.fstatat(tmp.dir.fd, basename, &info, .{}));
+            try testing.expectEqual(5, info.size);
+        }
         test "getdents" {
             if (!comptime NS.hasFeature(.getdents)) return error.SkipZigTest;
 
@@ -222,6 +259,27 @@ fn Test(NS: type) type {
             if (!comptime NS.hasFeature(.getegid)) return error.SkipZigTest;
             // always successful
             _ = NS.getegid();
+        }
+
+        test "lstat" {
+            if (!comptime NS.hasFeature(.lstat)) return error.SkipZigTest;
+
+            var arena_s = std.heap.ArenaAllocator.init(testing.allocator);
+            defer arena_s.deinit();
+            const arena = arena_s.allocator();
+            var tmp = try TmpDir.init(arena);
+            defer tmp.cleanup();
+
+            const realname = "1234567890.txt";
+            const linkname = "link.txt";
+            const file = try tmp.dir.createFile(realname, .{});
+            defer file.close();
+            try tmp.dir.symLink(realname, linkname, .{});
+
+            const file_path = try std.fs.path.joinZ(arena, &.{ tmp.path, linkname });
+            var info: NS.stat_t = undefined;
+            _ = try expect.sentinelNoError(-1, NS.lstat(file_path, &info));
+            try testing.expectEqual(realname.len, @as(usize, @bitCast(info.size)));
         }
 
         test "mkdir" {
@@ -398,6 +456,65 @@ fn Test(NS: type) type {
             const euid = try expect.sentinelNoError(-1, NS.geteuid());
             _ = try expect.sentinelNoError(-1, NS.setuid(euid));
             if (euid != 0) try expect.sentinelError(-1, .PERM, NS.setuid(0));
+        }
+
+        test "stat" {
+            if (!comptime NS.hasFeature(.stat)) return error.SkipZigTest;
+
+            var arena_s = std.heap.ArenaAllocator.init(testing.allocator);
+            defer arena_s.deinit();
+            const arena = arena_s.allocator();
+            var tmp = try TmpDir.init(arena);
+            defer tmp.cleanup();
+
+            const basename = "tiny.txt";
+            const file = try tmp.dir.createFile(basename, .{});
+            defer file.close();
+            try file.writeAll("12345");
+
+            const file_path = try std.fs.path.joinZ(arena, &.{ tmp.path, basename });
+            var info: NS.stat_t = undefined;
+            _ = try expect.sentinelNoError(-1, NS.stat(file_path, &info));
+            try testing.expectEqual(5, info.size);
+        }
+
+        test "symlink" {
+            if (!comptime NS.hasFeature(.symlink)) return error.SkipZigTest;
+
+            var arena_s = std.heap.ArenaAllocator.init(testing.allocator);
+            defer arena_s.deinit();
+            const arena = arena_s.allocator();
+            var tmp = try TmpDir.init(arena);
+            defer tmp.cleanup();
+
+            const realname = "real.txt";
+            const linkname = "link.txt";
+            const file = try tmp.dir.createFile(realname, .{});
+            defer file.close();
+
+            const path_real = try std.fs.path.joinZ(arena, &.{ tmp.path, realname });
+            const path_link = try std.fs.path.joinZ(arena, &.{ tmp.path, linkname });
+            _ = try expect.sentinelNoError(-1, NS.symlink(path_real, path_link));
+            _ = try expect.sentinelError(-1, .EXIST, NS.symlink(path_real, path_link));
+        }
+
+        test "symlinkat" {
+            if (!comptime NS.hasFeature(.symlinkat)) return error.SkipZigTest;
+
+            var arena_s = std.heap.ArenaAllocator.init(testing.allocator);
+            defer arena_s.deinit();
+            const arena = arena_s.allocator();
+            var tmp = try TmpDir.init(arena);
+            defer tmp.cleanup();
+
+            const realname = "real.txt";
+            const linkname = "link.txt";
+            const file = try tmp.dir.createFile(realname, .{});
+            defer file.close();
+
+            const path_real = try std.fs.path.joinZ(arena, &.{ tmp.path, realname });
+            _ = try expect.sentinelNoError(-1, NS.symlinkat(path_real, tmp.dir.fd, linkname));
+            _ = try expect.sentinelError(-1, .EXIST, NS.symlinkat(path_real, tmp.dir.fd, linkname));
         }
 
         test "write" {

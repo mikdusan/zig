@@ -423,6 +423,35 @@ pub const setuid = if (@hasField(sys.SYS, "setuid"))
 else
     sys.missing_feature;
 
+pub const symlink = if (@hasField(sys.SYS, "symlink"))
+    struct {
+        fn symlink(target: [*:0]const u8, linkpath: [*:0]const u8) c_int {
+            const rv = sys.syscall2_errno(
+                .symlink,
+                @intFromPtr(target),
+                @intFromPtr(linkpath),
+            );
+            return @bitCast(@as(u32, @truncate(rv)));
+        }
+    }.symlink
+else
+    sys.missing_feature;
+
+pub const symlinkat = if (@hasField(sys.SYS, "symlinkat"))
+    struct {
+        fn symlinkat(target: [*:0]const u8, fd: sys.fd_t, linkpath: [*:0]const u8) c_int {
+            const rv = sys.syscall3_errno(
+                .symlinkat,
+                @intFromPtr(target),
+                @as(u32, @bitCast(fd)),
+                @intFromPtr(linkpath),
+            );
+            return @bitCast(@as(u32, @truncate(rv)));
+        }
+    }.symlinkat
+else
+    sys.missing_feature;
+
 pub const write = if (@hasField(sys.SYS, "write"))
     struct {
         fn write(fd: sys.fd_t, buf: [*]const u8, len: usize) isize {
@@ -438,12 +467,17 @@ pub const write = if (@hasField(sys.SYS, "write"))
 else
     sys.missing_feature;
 
+pub const blkcnt_t = i64;
+pub const blksize_t = i32;
 pub const clock_t = if (@sizeOf(usize) == 8) i32 else c_ulong;
+pub const dev_t = u64;
 pub const fd_t = c_int;
+pub const fflags_t = u32;
 pub const gid_t = u32;
 pub const id_t = c_int;
-pub const ino_t = usize;
-pub const off_t = isize;
+pub const ino_t = u64;
+pub const nlink_t = u64;
+pub const off_t = i64;
 pub const pid_t = i32;
 pub const rlim_t = i64;
 pub const suseconds_t = c_long;
@@ -460,6 +494,7 @@ pub const AT = packed struct(u32) {
     _11: u1 = 0,
     RESOLVE_BENEATH:  bool = false,
     EMPTY_PATH:       bool = false,
+    _14: u19 = 0,
     // zig fmt: on
 
     pub const FDCWD: sys.fd_t = -100;
@@ -782,6 +817,37 @@ pub const rusage_t = extern struct {
         THREAD = 1,
         _,
     };
+};
+
+pub const stat_t = extern struct {
+    // zig fmt: off
+    dev:      sys.dev_t,
+    ino:      sys.ino_t,
+    nlink:    sys.nlink_t,
+    mode:     sys.mode_t,
+    _pad0:    i16,
+    uid:      sys.uid_t,
+    gid:      sys.gid_t,
+    _pad1:    i32,
+    rdev:     sys.dev_t,
+    atim:     sys.timespec_t,
+    mtim:     sys.timespec_t,
+    ctim:     sys.timespec_t,
+    birthtim: sys.timespec_t,
+    size:     sys.off_t,
+    blocks:   sys.blkcnt_t,
+    blksize:  sys.blksize_t,
+    flags:    sys.fflags_t,
+    gen:      u64,
+    _spare:   [10]u64,
+    // zig fmt: on
+
+    comptime {
+        const size = 224;
+        if (@sizeOf(@This()) != size) {
+            @compileError(std.fmt.comptimePrint("expected size {d} bytes, found {d}", .{ size, @sizeOf(@This()) }));
+        }
+    }
 };
 
 pub const timespec_t = extern struct {
