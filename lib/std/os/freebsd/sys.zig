@@ -616,6 +616,7 @@ pub const write = if (@hasField(sys.SYS, "write"))
 else
     sys.missing_feature;
 
+pub const PATH_MAX = 1024;
 pub const blkcnt_t = i64;
 pub const blksize_t = i32;
 pub const clock_t = if (@sizeOf(usize) == 8) i32 else c_ulong;
@@ -790,6 +791,88 @@ pub const O = packed struct(u32) {
     // zig fmt: on
 };
 
+pub const SIG = enum(c_int) {
+    // zig fmt: off
+    HUP    =  1, // hangup
+    INT    =  2, // interrupt
+    QUIT   =  3, // quit
+    ILL    =  4, // illegal instr. (not reset when caught)
+    TRAP   =  5, // trace trap (not reset when caught)
+    ABRT   =  6, // abort()
+    EMT    =  7, // EMT instruction
+    FPE    =  8, // floating point exception
+    KILL   =  9, // kill (cannot be caught or ignored)
+    BUS    = 10, // bus error
+    SEGV   = 11, // segmentation violation
+    SYS    = 12, // non-existent system call invoked
+    PIPE   = 13, // write on a pipe with no one to read it
+    ALRM   = 14, // alarm clock
+    TERM   = 15, // software termination signal from kill
+    URG    = 16, // urgent condition on IO channel
+    STOP   = 17, // sendable stop signal not from tty
+    TSTP   = 18, // stop signal from tty
+    CONT   = 19, // continue a stopped process
+    CHLD   = 20, // to parent on child stop or exit
+    TTIN   = 21, // to readers pgrp upon background tty read
+    TTOU   = 22, // like TTIN if (tp->t_local&LTOSTOP)
+    IO     = 23, // input/output possible signal
+    XCPU   = 24, // exceeded CPU time limit
+    XFSZ   = 25, // exceeded file size limit
+    VTALRM = 26, // virtual time alarm
+    PROF   = 27, // profiling time alarm
+    WINCH  = 28, // window size changes
+    INFO   = 29, // information request
+    USR1   = 30, // user defined signal 1
+    USR2   = 31, // user defined signal 2
+    THR    = 32, // reserved by thread library.
+    LIBRT  = 33, // reserved by real-time library.
+    _,
+    // zig fmt: on
+
+    pub const IOT = SIG.ABRT; // compatibility
+    pub const LWP = SIG.THR;
+
+    pub const RTMIN = 65;
+    pub const RTMAX = 126;
+
+    pub const ERR = @as(sys.sigaction_t.handler_fn, @ptrFromInt(-1));
+    pub const DFL = @as(sys.sigaction_t.handler_fn, @ptrFromInt(0));
+    pub const IGN = @as(sys.sigaction_t.handler_fn, @ptrFromInt(1));
+    pub const CATCH = @as(sys.sigaction_t.handler_fn, @ptrFromInt(2));
+    pub const HOLD = @as(sys.sigaction_t.handler_fn, @ptrFromInt(3));
+
+    pub const EV_NONE = 0; // No async notification.
+    pub const EV_SIGNAL = 1; // Generate a queued signal.
+    pub const EV_THREAD = 2; // Call back from another pthread.
+    pub const EV_KEVENT = 3; // Generate a kevent.
+    pub const EV_THREAD_ID = 4; // Send signal to a kernel thread.
+
+    pub const BLOCK = 1; // block specified signal set
+    pub const UNBLOCK = 2; // unblock specified signal set
+    pub const SETMASK = 3; // set specified signal set
+
+    pub const MINSTKSZ = switch (builtin.target.cpu.arch) {
+        .arm, .aarch64, .riscv64 => 1024 * 4,
+        else => 512 * 4,
+    };
+    pub const STKSZ = (MINSTKSZ + 32768); // recommended stack size
+
+    pub const WORDS = 4;
+    pub const MAXSIG = 128;
+};
+
+pub const SA = struct {
+    // zig fmt: off
+    pub const ONSTACK   = 0x0001; // take signal on signal stack
+    pub const RESTART   = 0x0002; // restart system call on signal return
+    pub const RESETHAND = 0x0004; // reset to SIG_DFL when taking signal
+    pub const NOCLDSTOP = 0x0008; // do not generate SIGCHLD on child stop
+    pub const NODEFER   = 0x0010; // don't mask the signal we're delivering
+    pub const NOCLDWAIT = 0x0020; // don't keep zombies around
+    pub const SIGINFO   = 0x0040; // signal handler with SA_SIGINFO args
+    // zig fmt: on
+};
+
 pub const clockid_t = enum(i32) {
     // zig fmt: off
     REALTIME           =  0,
@@ -903,6 +986,13 @@ pub const rlimit_t = extern struct {
         pub const SAVED_MAX = INFINITY;
         pub const SAVED_CUR = INFINITY;
     };
+
+    comptime {
+        const size = 16;
+        if (@sizeOf(@This()) != size) {
+            @compileError(std.fmt.comptimePrint("expected size {d} bytes, found {d}", .{ size, @sizeOf(@This()) }));
+        }
+    }
 };
 
 pub const rusage_t = extern struct {
@@ -929,6 +1019,138 @@ pub const rusage_t = extern struct {
         THREAD = 1,
         _,
     };
+
+    comptime {
+        const size = 144;
+        if (@sizeOf(@This()) != size) {
+            @compileError(std.fmt.comptimePrint("expected size {d} bytes, found {d}", .{ size, @sizeOf(@This()) }));
+        }
+    }
+};
+
+pub const sigaction_t = extern struct {
+    pub const handler_fn = *align(1) const fn (sys.SIG) callconv(.C) void;
+    pub const action_fn = *const fn (sys.SIG, *const sys.siginfo_t, ?*const anyopaque) callconv(.C) void;
+
+    handler: extern union {
+        handler: ?handler_fn,
+        action: ?action_fn,
+    },
+    flags: c_uint,
+    mask: sys.sigset_t,
+
+    comptime {
+        const size = 32;
+        if (@sizeOf(@This()) != size) {
+            @compileError(std.fmt.comptimePrint("expected size {d} bytes, found {d}", .{ size, @sizeOf(@This()) }));
+        }
+    }
+};
+
+pub const siginfo_t = extern struct {
+    signo: sys.SIG,
+    errno: sys.E,
+    code: c_int,
+    pid: sys.pid_t,
+    uid: sys.uid_t,
+    status: c_int,
+    addr: ?*anyopaque,
+    value: sys.sigval_t,
+    reason: extern union {
+        fault: extern struct {
+            trapno: c_int,
+        },
+        timer: extern struct {
+            timerid: c_int,
+            overrun: c_int,
+        },
+        mesgq: extern struct {
+            mqd: c_int,
+        },
+        poll: extern struct {
+            band: c_long,
+        },
+        _spare: extern struct {
+            spare1: c_long,
+            spare2: [7]c_int,
+        },
+    },
+};
+
+pub const sigset_t = extern struct {
+    __bits: [sys.SIG.WORDS]u32 = EMPTY,
+
+    pub fn clear(self: *sigset_t, sig: sys.SIG) void {
+        const signo = @intFromEnum(sig);
+        std.debug.assert(signo > 0 and signo <= sys.SIG.MAXSIG);
+        const idx = @as(u32, @bitCast(signo)) - 1;
+        self.__bits[idx >> 5] &= ~(@as(u32, 1) << @as(u5, @truncate(idx)));
+    }
+
+    pub fn set(self: *sigset_t, sig: sys.SIG) void {
+        const signo = @intFromEnum(sig);
+        std.debug.assert(signo > 0 and signo <= sys.SIG.MAXSIG);
+        const idx = @as(u32, @bitCast(signo)) - 1;
+        self.__bits[idx >> 5] |= @as(u32, 1) << @as(u5, @truncate(idx));
+    }
+
+    pub fn assign(self: *sigset_t, other: sigset_t) void {
+        @memcpy(&self.__bits, &other.__bits);
+    }
+
+    pub fn empty(self: *sigset_t) void {
+        self.__bits = EMPTY;
+    }
+
+    pub fn fill(self: *sigset_t) void {
+        self.__bits = FULL;
+    }
+
+    pub fn is_empty(self: sigset_t) bool {
+        return std.mem.eql(u32, &self.__bits, &EMPTY);
+    }
+
+    pub fn is_full(self: sigset_t) bool {
+        return std.mem.eql(u32, &self.__bits, &FULL);
+    }
+
+    pub fn is_set(self: sigset_t, sig: sys.SIG) bool {
+        const signo = @intFromEnum(sig);
+        std.debug.assert(signo > 0 and signo <= sys.SIG.MAXSIG);
+        const idx = @as(u32, @bitCast(signo)) - 1;
+        const word = self.__bits[idx >> 5];
+        return if (word & (@as(u32, 1) << @as(u5, @truncate(idx))) != 0) true else false;
+    }
+
+    pub fn and_with(self: *sigset_t, other: sigset_t) void {
+        for (&self.__bits, &other.__bits) |*lhs, rhs| lhs.* &= rhs;
+    }
+
+    pub fn or_with(self: *sigset_t, other: sigset_t) void {
+        for (&self.__bits, &other.__bits) |*lhs, rhs| lhs.* |= rhs;
+    }
+
+    const EMPTY = [1]u32{ 0 } ** sys.SIG.WORDS;
+    const FULL = [1]u32{ 0xffff_ffff } ** sys.SIG.WORDS;
+
+    comptime {
+        const size = 16;
+        if (@sizeOf(@This()) != size) {
+            @compileError(std.fmt.comptimePrint("expected size {d} bytes, found {d}", .{ size, @sizeOf(@This()) }));
+        }
+    }
+};
+
+pub const sigval_t = extern union {
+    int: c_int,
+    ptr: ?*anyopaque,
+
+    comptime {
+        const size = 8;
+        if (@sizeOf(@This()) != size) {
+            @compileError(std.fmt.comptimePrint("expected size {d} bytes, found {d}", .{ size, @sizeOf(@This()) }));
+        }
+    }
 };
 
 pub const stat_t = extern struct {
@@ -965,11 +1187,25 @@ pub const stat_t = extern struct {
 pub const timespec_t = extern struct {
     sec: sys.time_t,
     nsec: c_long,
+
+    comptime {
+        const size = 16;
+        if (@sizeOf(@This()) != size) {
+            @compileError(std.fmt.comptimePrint("expected size {d} bytes, found {d}", .{ size, @sizeOf(@This()) }));
+        }
+    }
 };
 
 pub const timeval_t = extern struct {
     sec: sys.time_t,
     usec: sys.suseconds_t,
+
+    comptime {
+        const size = 16;
+        if (@sizeOf(@This()) != size) {
+            @compileError(std.fmt.comptimePrint("expected size {d} bytes, found {d}", .{ size, @sizeOf(@This()) }));
+        }
+    }
 };
 
 const Feature = std.os.freebsd.Feature(@This());

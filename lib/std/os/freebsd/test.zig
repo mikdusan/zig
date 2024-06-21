@@ -124,6 +124,7 @@ fn Test(NS: type) type {
             _ = try expect.sentinelNoError(-1, NS.fstatat(tmp.dir.fd, basename, &info, .{}));
             try testing.expectEqual(5, info.size);
         }
+
         test "getdents" {
             if (!comptime NS.hasFeature(.getdents)) return error.SkipZigTest;
 
@@ -139,7 +140,7 @@ fn Test(NS: type) type {
             var buf: [8192]u8 align(@alignOf(NS.dirent_t)) = undefined;
             const len = try expect.sentinelNoError(-1, NS.getdents(tmp.dir.fd, &buf, buf.len));
 
-            var entries: [3]*const sys.dirent_t = undefined;
+            var entries: [3]*const NS.dirent_t = undefined;
             var i: usize = 0;
             var entry_index: usize = 0;
             while (i < len and entry_index < 3) {
@@ -176,9 +177,9 @@ fn Test(NS: type) type {
             defer file.close();
 
             var buf: [1024]u8 = undefined;
-            const len = try expect.sentinelNoError(-1, NS.getdirentries(tmp.dir.fd, &buf, buf.len * @sizeOf(sys.dirent_t), null));
+            const len = try expect.sentinelNoError(-1, NS.getdirentries(tmp.dir.fd, &buf, buf.len * @sizeOf(NS.dirent_t), null));
 
-            var entries: [3]*const sys.dirent_t = undefined;
+            var entries: [3]*const NS.dirent_t = undefined;
             var i: usize = 0;
             var entry_index: usize = 0;
             while (i < len and entry_index < 3) {
@@ -199,7 +200,7 @@ fn Test(NS: type) type {
                 }
             }
 
-            try expect.sentinelError(-1, .BADF, NS.getdirentries(file.handle, &buf, buf.len * @sizeOf(sys.dirent_t), null));
+            try expect.sentinelError(-1, .BADF, NS.getdirentries(file.handle, &buf, buf.len * @sizeOf(NS.dirent_t), null));
         }
 
         test "getpid" {
@@ -267,6 +268,16 @@ fn Test(NS: type) type {
             if (!comptime NS.hasFeature(.getegid)) return error.SkipZigTest;
             // always successful
             _ = NS.getegid();
+        }
+
+        test "kill" {
+            if (!comptime NS.hasFeature(.kill)) return error.SkipZigTest;
+            _ = &NS.kill;
+        }
+
+        test "killpg" {
+            if (!comptime NS.hasFeature(.killpg)) return error.SkipZigTest;
+            _ = &NS.killpg;
         }
 
         test "lstat" {
@@ -391,6 +402,11 @@ fn Test(NS: type) type {
             _ = try expect.sentinelNoError(-1, NS.close(fd));
         }
 
+        test "raise" {
+            if (!comptime NS.hasFeature(.raise)) return error.SkipZigTest;
+            _ = &NS.raise;
+        }
+
         test "read" {
             if (!comptime NS.hasFeature(.read)) return error.SkipZigTest;
 
@@ -484,6 +500,52 @@ fn Test(NS: type) type {
             var info: NS.stat_t = undefined;
             _ = try expect.sentinelNoError(-1, NS.stat(file_path, &info));
             try testing.expectEqual(5, info.size);
+        }
+
+        test "sigaction" {
+            if (!comptime NS.hasFeature(.sigaction)) return error.SkipZigTest;
+
+            var oact: NS.sigaction_t = undefined;
+            _ = try expect.sentinelNoError(-1, NS.sigaction(.USR1, null, &oact));
+        }
+
+        test "sigset_t" {
+            if (!comptime NS.hasFeature(.sigset_t)) return error.SkipZigTest;
+
+            var ss0: sys.sigset_t = .{};
+            try testing.expectEqual(true, ss0.is_empty());
+            try testing.expectEqual(false, ss0.is_set(.HUP));
+
+            ss0.empty();
+            try testing.expectEqual(true, ss0.is_empty());
+
+            ss0.fill();
+            try testing.expectEqual(true, ss0.is_full());
+            try testing.expectEqual(true, ss0.is_set(.HUP));
+
+            var ss1: sys.sigset_t = .{};
+            ss0.empty();
+            ss1.empty();
+            ss0.and_with(ss1);
+            try testing.expectEqual(true, ss0.is_empty());
+
+            ss1.fill();
+            ss0.and_with(ss1);
+            try testing.expectEqual(true, ss0.is_empty());
+            ss0.or_with(ss1);
+            try testing.expectEqual(true, ss0.is_full());
+
+            ss0.fill();
+            ss1.empty();
+            ss1.set(.HUP);
+            ss0.and_with(ss1);
+            try testing.expectEqual(true, ss0.is_set(.HUP));
+            try testing.expectEqual(false, ss0.is_set(.QUIT));
+
+            ss1.empty();
+            ss0.assign(ss1);
+            try testing.expectEqual(false, ss0.is_set(.HUP));
+            try testing.expectEqual(true, ss0.is_empty());
         }
 
         test "symlink" {
