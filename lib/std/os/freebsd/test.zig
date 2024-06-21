@@ -543,7 +543,7 @@ fn Test(NS: type) type {
             try testing.expectEqual(false, ss0.is_set(.QUIT));
 
             ss1.empty();
-            ss0.assign(ss1);
+            ss0.assign_from(ss1);
             try testing.expectEqual(false, ss0.is_set(.HUP));
             try testing.expectEqual(true, ss0.is_empty());
         }

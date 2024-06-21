@@ -1094,7 +1094,7 @@ pub const sigset_t = extern struct {
         self.__bits[idx >> 5] |= @as(u32, 1) << @as(u5, @truncate(idx));
     }
 
-    pub fn assign(self: *sigset_t, other: sigset_t) void {
+    pub fn assign_from(self: *sigset_t, other: sigset_t) void {
         @memcpy(&self.__bits, &other.__bits);
     }
 
