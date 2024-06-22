@@ -1788,10 +1788,10 @@ pub fn raiseFileDescriptorLimit() void {
     if (lim.cur == lim.max) return;
 
     // Do a binary search for the limit.
-    var min: posix.rlim_t = lim.cur;
-    var max: posix.rlim_t = 1 << 20;
+    var min: posix.rlimit_value_t = lim.cur;
+    var max: posix.rlimit_value_t = 1 << 20;
     // But if there's a defined upper bound, don't search, just set it.
-    if (lim.max != posix.RLIM.INFINITY) {
+    if (lim.max != posix.rlimit_t.INFINITY) {
         min = lim.max;
         max = lim.max;
     }

@@ -356,7 +356,7 @@ test "fstatat" {
     defer file.close();
 
     // now repeat but using `fstatat` instead
-    const flags = if (native_os == .wasi) 0x0 else posix.AT.SYMLINK_NOFOLLOW;
+    const flags = if (native_os == .wasi) 0x0 else posix.AT{ .SYMLINK_NOFOLLOW = true };
     const statat = try posix.fstatat(tmp.dir.fd, "file.txt", flags);
     try expectEqual(stat, statat);
 }
@@ -483,7 +483,7 @@ test "sigaltstack" {
 
 // If the type is not available use void to avoid erroring out when `iter_fn` is
 // analyzed
-const dl_phdr_info = if (@hasDecl(posix.system, "dl_phdr_info")) posix.dl_phdr_info else anyopaque;
+const dl_phdr_info_t = if (@hasDecl(posix.system, "dl_phdr_info_t")) posix.dl_phdr_info_t else anyopaque;
 
 const IterFnError = error{
     MissingPtLoadSegment,
@@ -492,7 +492,7 @@ const IterFnError = error{
     FailedConsistencyCheck,
 };
 
-fn iter_fn(info: *dl_phdr_info, size: usize, counter: *usize) IterFnError!void {
+fn iter_fn(info: *dl_phdr_info_t, size: usize, counter: *usize) IterFnError!void {
     _ = size;
     // Count how many libraries are loaded
     counter.* += @as(usize, 1);
@@ -570,7 +570,7 @@ test "memfd_create" {
         else => return error.SkipZigTest,
     }
 
-    const fd = posix.memfd_create("test", 0) catch |err| switch (err) {
+    const fd = posix.memfd_create("test", .{}) catch |err| switch (err) {
         // Related: https://github.com/ziglang/zig/issues/4019
         error.SystemOutdated => return error.SkipZigTest,
         else => |e| return e,
@@ -597,7 +597,7 @@ test "mmap" {
         const data = try posix.mmap(
             null,
             1234,
-            posix.PROT.READ | posix.PROT.WRITE,
+            .{ .READ = true, .WRITE = true },
             .{ .TYPE = .PRIVATE, .ANONYMOUS = true },
             -1,
             0,
@@ -639,7 +639,7 @@ test "mmap" {
         const data = try posix.mmap(
             null,
             alloc_size,
-            posix.PROT.READ,
+            .{ .READ = true },
             .{ .TYPE = .PRIVATE },
             file.handle,
             0,
@@ -663,7 +663,7 @@ test "mmap" {
         const data = try posix.mmap(
             null,
             alloc_size / 2,
-            posix.PROT.READ,
+            .{ .READ = true },
             .{ .TYPE = .PRIVATE },
             file.handle,
             alloc_size / 2,
@@ -839,7 +839,7 @@ test "sigaction" {
     const S = struct {
         var handler_called_count: u32 = 0;
 
-        fn handler(sig: i32, info: *const posix.siginfo_t, ctx_ptr: ?*anyopaque) callconv(.C) void {
+        fn handler(sig: posix.SIG, info: *const posix.siginfo_t, ctx_ptr: ?*anyopaque) callconv(.C) void {
             _ = ctx_ptr;
             // Check that we received the correct signal.
             switch (native_os) {
@@ -855,46 +855,46 @@ test "sigaction" {
         }
     };
 
-    var sa: posix.Sigaction = .{
-        .handler = .{ .sigaction = &S.handler },
-        .mask = posix.empty_sigset,
+    var sa: posix.sigaction_t = .{
+        .handler = .{ .action = &S.handler },
+        .mask = posix.sigset_t.EMPTY,
         .flags = posix.SA.SIGINFO | posix.SA.RESETHAND,
     };
-    var old_sa: posix.Sigaction = undefined;
+    var old_sa: posix.sigaction_t = undefined;
 
     // Install the new signal handler.
-    try posix.sigaction(posix.SIG.USR1, &sa, null);
+    try posix.sigaction(.USR1, &sa, null);
 
     // Check that we can read it back correctly.
-    try posix.sigaction(posix.SIG.USR1, null, &old_sa);
-    try testing.expectEqual(&S.handler, old_sa.handler.sigaction.?);
+    try posix.sigaction(.USR1, null, &old_sa);
+    try testing.expectEqual(&S.handler, old_sa.handler.action.?);
     try testing.expect((old_sa.flags & posix.SA.SIGINFO) != 0);
 
     // Invoke the handler.
-    try posix.raise(posix.SIG.USR1);
+    try posix.raise(.USR1);
     try testing.expect(S.handler_called_count == 1);
 
     // Check if passing RESETHAND correctly reset the handler to SIG_DFL
-    try posix.sigaction(posix.SIG.USR1, null, &old_sa);
+    try posix.sigaction(.USR1, null, &old_sa);
     try testing.expectEqual(posix.SIG.DFL, old_sa.handler.handler);
 
     // Reinstall the signal w/o RESETHAND and re-raise
     sa.flags = posix.SA.SIGINFO;
-    try posix.sigaction(posix.SIG.USR1, &sa, null);
-    try posix.raise(posix.SIG.USR1);
+    try posix.sigaction(.USR1, &sa, null);
+    try posix.raise(.USR1);
     try testing.expect(S.handler_called_count == 2);
 
     // Now set the signal to ignored
     sa.handler = .{ .handler = posix.SIG.IGN };
     sa.flags = 0;
-    try posix.sigaction(posix.SIG.USR1, &sa, null);
+    try posix.sigaction(.USR1, &sa, null);
 
     // Re-raise to ensure handler is actually ignored
-    try posix.raise(posix.SIG.USR1);
+    try posix.raise(.USR1);
     try testing.expect(S.handler_called_count == 2);
 
     // Ensure that ignored state is returned when querying
-    try posix.sigaction(posix.SIG.USR1, null, &old_sa);
+    try posix.sigaction(.USR1, null, &old_sa);
     try testing.expectEqual(posix.SIG.IGN, old_sa.handler.handler.?);
 }
 
@@ -939,7 +939,7 @@ test "writev longer than IOV_MAX" {
     var file = try tmp.dir.createFile("pwritev", .{});
     defer file.close();
 
-    const iovecs = [_]posix.iovec_const{.{ .base = "a", .len = 1 }} ** (posix.IOV_MAX + 1);
+    const iovecs = [_]posix.iovec_const_t{.{ .base = "a", .len = 1 }} ** (posix.IOV_MAX + 1);
     const amt = try file.writev(&iovecs);
     try testing.expectEqual(@as(usize, posix.IOV_MAX), amt);
 }
@@ -1092,17 +1092,17 @@ test "access smoke test" {
     fd = try posix.open(file_path, .{ .ACCMODE = .RDWR, .CREAT = true, .EXCL = true }, mode);
     posix.close(fd);
 
-    // Try to access() the file
+    // Try to access() the file.
     file_path = try fs.path.join(allocator, &[_][]const u8{ base_path, "some_file" });
     if (native_os == .windows) {
-        try posix.access(file_path, posix.F_OK);
+        try posix.access(file_path, .{});
     } else {
-        try posix.access(file_path, posix.F_OK | posix.W_OK | posix.R_OK);
+        try posix.access(file_path, .{ .WRITE = true, .READ = true });
     }
 
     // Try to access() a non-existent file - should fail with error.FileNotFound
     file_path = try fs.path.join(allocator, &[_][]const u8{ base_path, "some_other_file" });
-    try expectError(error.FileNotFound, posix.access(file_path, posix.F_OK));
+    try expectError(error.FileNotFound, posix.access(file_path, .{}));
 
     // Create some directory
     file_path = try fs.path.join(allocator, &[_][]const u8{ base_path, "some_dir" });
@@ -1110,7 +1110,7 @@ test "access smoke test" {
 
     // Try to access() the directory
     file_path = try fs.path.join(allocator, &[_][]const u8{ base_path, "some_dir" });
-    try posix.access(file_path, posix.F_OK);
+    try posix.access(file_path, .{});
 }
 
 test "timerfd" {
@@ -1242,7 +1242,7 @@ test "pwrite with empty buffer" {
 }
 
 fn expectMode(dir: posix.fd_t, file: []const u8, mode: posix.mode_t) !void {
-    const st = try posix.fstatat(dir, file, posix.AT.SYMLINK_NOFOLLOW);
+    const st = try posix.fstatat(dir, file, .{ .SYMLINK_NOFOLLOW = true });
     try expectEqual(mode, st.mode & 0b111_111_111);
 }
 
@@ -1252,7 +1252,7 @@ test "fchmodat smoke test" {
     var tmp = tmpDir(.{});
     defer tmp.cleanup();
 
-    try expectError(error.FileNotFound, posix.fchmodat(tmp.dir.fd, "regfile", 0o666, 0));
+    try expectError(error.FileNotFound, posix.fchmodat(tmp.dir.fd, "regfile", 0o666, .{}));
     const fd = try posix.openat(
         tmp.dir.fd,
         "regfile",
@@ -1262,21 +1262,21 @@ test "fchmodat smoke test" {
     posix.close(fd);
     try posix.symlinkat("regfile", tmp.dir.fd, "symlink");
     const sym_mode = blk: {
-        const st = try posix.fstatat(tmp.dir.fd, "symlink", posix.AT.SYMLINK_NOFOLLOW);
+        const st = try posix.fstatat(tmp.dir.fd, "symlink", .{ .SYMLINK_NOFOLLOW = true });
         break :blk st.mode & 0b111_111_111;
     };
 
-    try posix.fchmodat(tmp.dir.fd, "regfile", 0o640, 0);
+    try posix.fchmodat(tmp.dir.fd, "regfile", 0o640, .{});
     try expectMode(tmp.dir.fd, "regfile", 0o640);
-    try posix.fchmodat(tmp.dir.fd, "regfile", 0o600, posix.AT.SYMLINK_NOFOLLOW);
+    try posix.fchmodat(tmp.dir.fd, "regfile", 0o600, .{ .SYMLINK_NOFOLLOW = true });
     try expectMode(tmp.dir.fd, "regfile", 0o600);
 
-    try posix.fchmodat(tmp.dir.fd, "symlink", 0o640, 0);
+    try posix.fchmodat(tmp.dir.fd, "symlink", 0o640, .{});
     try expectMode(tmp.dir.fd, "regfile", 0o640);
     try expectMode(tmp.dir.fd, "symlink", sym_mode);
 
     var test_link = true;
-    posix.fchmodat(tmp.dir.fd, "symlink", 0o600, posix.AT.SYMLINK_NOFOLLOW) catch |err| switch (err) {
+    posix.fchmodat(tmp.dir.fd, "symlink", 0o600, .{ .SYMLINK_NOFOLLOW = true }) catch |err| switch (err) {
         error.OperationNotSupported => test_link = false,
         else => |e| return e,
     };
@@ -1286,7 +1286,7 @@ test "fchmodat smoke test" {
 }
 
 const CommonOpenFlags = packed struct {
-    ACCMODE: posix.ACCMODE = .RDONLY,
+    ACCMODE: posix.system.O.accmode_t = .RDONLY,
     CREAT: bool = false,
     EXCL: bool = false,
     LARGEFILE: bool = false,

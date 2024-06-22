@@ -618,6 +618,8 @@ else
 
 pub const IOV_MAX = 1024;
 
+pub const HOST_NAME_MAX = 255;
+pub const NAME_MAX = 255;
 pub const PAGE_SIZE = 4096;
 pub const PATH_MAX = 1024;
 
@@ -639,7 +641,7 @@ pub const nlink_t = u64;
 pub const off_t = i64;
 pub const pthread_t = *opaque {};
 pub const pid_t = i32;
-pub const rlim_t = i64;
+pub const rlimit_value_t = i64;
 pub const suseconds_t = c_long;
 pub const time_t = if (@sizeOf(usize) == 8) i64 else i32;
 pub const uid_t = u32;
@@ -1217,8 +1219,12 @@ pub const priority = struct {
 };
 
 pub const rlimit_t = extern struct {
-    cur: sys.rlim_t,
-    max: sys.rlim_t,
+    cur: sys.rlimit_value_t,
+    max: sys.rlimit_value_t,
+
+    pub const INFINITY: sys.rlimit_value_t = (@as(u64, 1) << 63) - 1;
+    pub const SAVED_MAX = INFINITY;
+    pub const SAVED_CUR = INFINITY;
 
     comptime {
         const size = 16;
@@ -1247,10 +1253,6 @@ pub const rlimit_resource_t = enum(c_int) {
     UMTXP   = 14,
     _,
     // zig fmt: on
-
-    pub const INFINITY: sys.rlim_t = (@as(u64, 1) << 63) - 1;
-    pub const SAVED_MAX = INFINITY;
-    pub const SAVED_CUR = INFINITY;
 };
 
 pub const rusage_t = extern struct {
@@ -1705,4 +1707,588 @@ pub const CTL = enum(c_int) {
         realmem         = 12, // int: 'real' memory
     };
     // zig fmt: on
+};
+
+pub const in_port_t = u16;
+pub const sa_family_t = u8;
+
+pub const sockaddr = extern struct {
+    /// total length
+    len: u8,
+    /// address family
+    family: sa_family_t,
+    /// actually longer; address value
+    data: [14]u8,
+
+    pub const SS_MAXSIZE = 128;
+    pub const storage = extern struct {
+        len: u8 align(8),
+        family: sa_family_t,
+        padding: [126]u8 = undefined,
+
+        comptime {
+            std.debug.assert(@sizeOf(storage) == SS_MAXSIZE);
+            std.debug.assert(@alignOf(storage) == 8);
+        }
+    };
+
+    pub const in = extern struct {
+        len: u8 = @sizeOf(in),
+        family: sa_family_t = AF.INET,
+        port: in_port_t,
+        addr: u32,
+        zero: [8]u8 = [8]u8{ 0, 0, 0, 0, 0, 0, 0, 0 },
+    };
+
+    pub const in6 = extern struct {
+        len: u8 = @sizeOf(in6),
+        family: sa_family_t = AF.INET6,
+        port: in_port_t,
+        flowinfo: u32,
+        addr: [16]u8,
+        scope_id: u32,
+    };
+
+    pub const un = extern struct {
+        len: u8 = @sizeOf(un),
+        family: sa_family_t = AF.UNIX,
+        path: [104]u8,
+    };
+};
+
+pub const AF = struct {
+    pub const UNSPEC = 0;
+    pub const UNIX = 1;
+    pub const LOCAL = UNIX;
+    pub const FILE = LOCAL;
+    pub const INET = 2;
+    pub const IMPLINK = 3;
+    pub const PUP = 4;
+    pub const CHAOS = 5;
+    pub const NETBIOS = 6;
+    pub const ISO = 7;
+    pub const OSI = ISO;
+    pub const ECMA = 8;
+    pub const DATAKIT = 9;
+    pub const CCITT = 10;
+    pub const SNA = 11;
+    pub const DECnet = 12;
+    pub const DLI = 13;
+    pub const LAT = 14;
+    pub const HYLINK = 15;
+    pub const APPLETALK = 16;
+    pub const ROUTE = 17;
+    pub const LINK = 18;
+    pub const pseudo_XTP = 19;
+    pub const COIP = 20;
+    pub const CNT = 21;
+    pub const pseudo_RTIP = 22;
+    pub const IPX = 23;
+    pub const SIP = 24;
+    pub const pseudo_PIP = 25;
+    pub const ISDN = 26;
+    pub const E164 = ISDN;
+    pub const pseudo_KEY = 27;
+    pub const INET6 = 28;
+    pub const NATM = 29;
+    pub const ATM = 30;
+    pub const pseudo_HDRCMPLT = 31;
+    pub const NETGRAPH = 32;
+    pub const SLOW = 33;
+    pub const SCLUSTER = 34;
+    pub const ARP = 35;
+    pub const BLUETOOTH = 36;
+    pub const IEEE80211 = 37;
+    pub const INET_SDP = 40;
+    pub const INET6_SDP = 42;
+    pub const MAX = 42;
+};
+
+pub const IFNAMESIZE = 16;
+
+pub const SOCK = struct {
+    pub const STREAM = 1;
+    pub const DGRAM = 2;
+    pub const RAW = 3;
+    pub const RDM = 4;
+    pub const SEQPACKET = 5;
+
+    pub const CLOEXEC = 0x10000000;
+    pub const NONBLOCK = 0x20000000;
+};
+
+pub const SO = struct {
+    pub const DEBUG = 0x00000001;
+    pub const ACCEPTCONN = 0x00000002;
+    pub const REUSEADDR = 0x00000004;
+    pub const KEEPALIVE = 0x00000008;
+    pub const DONTROUTE = 0x00000010;
+    pub const BROADCAST = 0x00000020;
+    pub const USELOOPBACK = 0x00000040;
+    pub const LINGER = 0x00000080;
+    pub const OOBINLINE = 0x00000100;
+    pub const REUSEPORT = 0x00000200;
+    pub const TIMESTAMP = 0x00000400;
+    pub const NOSIGPIPE = 0x00000800;
+    pub const ACCEPTFILTER = 0x00001000;
+    pub const BINTIME = 0x00002000;
+    pub const NO_OFFLOAD = 0x00004000;
+    pub const NO_DDP = 0x00008000;
+    pub const REUSEPORT_LB = 0x00010000;
+
+    pub const SNDBUF = 0x1001;
+    pub const RCVBUF = 0x1002;
+    pub const SNDLOWAT = 0x1003;
+    pub const RCVLOWAT = 0x1004;
+    pub const SNDTIMEO = 0x1005;
+    pub const RCVTIMEO = 0x1006;
+    pub const ERROR = 0x1007;
+    pub const TYPE = 0x1008;
+    pub const LABEL = 0x1009;
+    pub const PEERLABEL = 0x1010;
+    pub const LISTENQLIMIT = 0x1011;
+    pub const LISTENQLEN = 0x1012;
+    pub const LISTENINCQLEN = 0x1013;
+    pub const SETFIB = 0x1014;
+    pub const USER_COOKIE = 0x1015;
+    pub const PROTOCOL = 0x1016;
+    pub const PROTOTYPE = PROTOCOL;
+    pub const TS_CLOCK = 0x1017;
+    pub const MAX_PACING_RATE = 0x1018;
+    pub const DOMAIN = 0x1019;
+};
+
+pub const AI = struct {
+    /// get address to use bind()
+    pub const PASSIVE = 0x00000001;
+    /// fill ai_canonname
+    pub const CANONNAME = 0x00000002;
+    /// prevent host name resolution
+    pub const NUMERICHOST = 0x00000004;
+    /// prevent service name resolution
+    pub const NUMERICSERV = 0x00000008;
+    /// valid flags for addrinfo (not a standard def, apps should not use it)
+    pub const MASK = (PASSIVE | CANONNAME | NUMERICHOST | NUMERICSERV | ADDRCONFIG | ALL | V4MAPPED);
+    /// IPv6 and IPv4-mapped (with V4MAPPED)
+    pub const ALL = 0x00000100;
+    /// accept IPv4-mapped if kernel supports
+    pub const V4MAPPED_CFG = 0x00000200;
+    /// only if any address is assigned
+    pub const ADDRCONFIG = 0x00000400;
+    /// accept IPv4-mapped IPv6 address
+    pub const V4MAPPED = 0x00000800;
+    /// special recommended flags for getipnodebyname
+    pub const DEFAULT = (V4MAPPED_CFG | ADDRCONFIG);
+};
+
+pub const FD_CLOEXEC = 1;
+
+pub const access_mode_t = packed struct(u32) {
+    // zig fmt: off
+    EXECUTE: bool = false, // test for execute or search permission
+    WRITE:   bool = false, // test for write permission
+    READ:    bool = false, // test for read permission
+    _4: u29 = 0,
+    // zig fmt: on
+};
+
+pub const LOCK = struct {
+    pub const SH = 1;
+    pub const EX = 2;
+    pub const UN = 8;
+    pub const NB = 4;
+};
+
+pub const IPPROTO = struct {
+    /// dummy for IP
+    pub const IP = 0;
+    /// control message protocol
+    pub const ICMP = 1;
+    /// tcp
+    pub const TCP = 6;
+    /// user datagram protocol
+    pub const UDP = 17;
+    /// IP6 header
+    pub const IPV6 = 41;
+    /// raw IP packet
+    pub const RAW = 255;
+    /// IP6 hop-by-hop options
+    pub const HOPOPTS = 0;
+    /// group mgmt protocol
+    pub const IGMP = 2;
+    /// gateway^2 (deprecated)
+    pub const GGP = 3;
+    /// IPv4 encapsulation
+    pub const IPV4 = 4;
+    /// for compatibility
+    pub const IPIP = IPV4;
+    /// Stream protocol II
+    pub const ST = 7;
+    /// exterior gateway protocol
+    pub const EGP = 8;
+    /// private interior gateway
+    pub const PIGP = 9;
+    /// BBN RCC Monitoring
+    pub const RCCMON = 10;
+    /// network voice protocol
+    pub const NVPII = 11;
+    /// pup
+    pub const PUP = 12;
+    /// Argus
+    pub const ARGUS = 13;
+    /// EMCON
+    pub const EMCON = 14;
+    /// Cross Net Debugger
+    pub const XNET = 15;
+    /// Chaos
+    pub const CHAOS = 16;
+    /// Multiplexing
+    pub const MUX = 18;
+    /// DCN Measurement Subsystems
+    pub const MEAS = 19;
+    /// Host Monitoring
+    pub const HMP = 20;
+    /// Packet Radio Measurement
+    pub const PRM = 21;
+    /// xns idp
+    pub const IDP = 22;
+    /// Trunk-1
+    pub const TRUNK1 = 23;
+    /// Trunk-2
+    pub const TRUNK2 = 24;
+    /// Leaf-1
+    pub const LEAF1 = 25;
+    /// Leaf-2
+    pub const LEAF2 = 26;
+    /// Reliable Data
+    pub const RDP = 27;
+    /// Reliable Transaction
+    pub const IRTP = 28;
+    /// tp-4 w/ class negotiation
+    pub const TP = 29;
+    /// Bulk Data Transfer
+    pub const BLT = 30;
+    /// Network Services
+    pub const NSP = 31;
+    /// Merit Internodal
+    pub const INP = 32;
+    /// Datagram Congestion Control Protocol
+    pub const DCCP = 33;
+    /// Third Party Connect
+    pub const @"3PC" = 34;
+    /// InterDomain Policy Routing
+    pub const IDPR = 35;
+    /// XTP
+    pub const XTP = 36;
+    /// Datagram Delivery
+    pub const DDP = 37;
+    /// Control Message Transport
+    pub const CMTP = 38;
+    /// TP++ Transport
+    pub const TPXX = 39;
+    /// IL transport protocol
+    pub const IL = 40;
+    /// Source Demand Routing
+    pub const SDRP = 42;
+    /// IP6 routing header
+    pub const ROUTING = 43;
+    /// IP6 fragmentation header
+    pub const FRAGMENT = 44;
+    /// InterDomain Routing
+    pub const IDRP = 45;
+    /// resource reservation
+    pub const RSVP = 46;
+    /// General Routing Encap.
+    pub const GRE = 47;
+    /// Mobile Host Routing
+    pub const MHRP = 48;
+    /// BHA
+    pub const BHA = 49;
+    /// IP6 Encap Sec. Payload
+    pub const ESP = 50;
+    /// IP6 Auth Header
+    pub const AH = 51;
+    /// Integ. Net Layer Security
+    pub const INLSP = 52;
+    /// IP with encryption
+    pub const SWIPE = 53;
+    /// Next Hop Resolution
+    pub const NHRP = 54;
+    /// IP Mobility
+    pub const MOBILE = 55;
+    /// Transport Layer Security
+    pub const TLSP = 56;
+    /// SKIP
+    pub const SKIP = 57;
+    /// ICMP6
+    pub const ICMPV6 = 58;
+    /// IP6 no next header
+    pub const NONE = 59;
+    /// IP6 destination option
+    pub const DSTOPTS = 60;
+    /// any host internal protocol
+    pub const AHIP = 61;
+    /// CFTP
+    pub const CFTP = 62;
+    /// "hello" routing protocol
+    pub const HELLO = 63;
+    /// SATNET/Backroom EXPAK
+    pub const SATEXPAK = 64;
+    /// Kryptolan
+    pub const KRYPTOLAN = 65;
+    /// Remote Virtual Disk
+    pub const RVD = 66;
+    /// Pluribus Packet Core
+    pub const IPPC = 67;
+    /// Any distributed FS
+    pub const ADFS = 68;
+    /// Satnet Monitoring
+    pub const SATMON = 69;
+    /// VISA Protocol
+    pub const VISA = 70;
+    /// Packet Core Utility
+    pub const IPCV = 71;
+    /// Comp. Prot. Net. Executive
+    pub const CPNX = 72;
+    /// Comp. Prot. HeartBeat
+    pub const CPHB = 73;
+    /// Wang Span Network
+    pub const WSN = 74;
+    /// Packet Video Protocol
+    pub const PVP = 75;
+    /// BackRoom SATNET Monitoring
+    pub const BRSATMON = 76;
+    /// Sun net disk proto (temp.)
+    pub const ND = 77;
+    /// WIDEBAND Monitoring
+    pub const WBMON = 78;
+    /// WIDEBAND EXPAK
+    pub const WBEXPAK = 79;
+    /// ISO cnlp
+    pub const EON = 80;
+    /// VMTP
+    pub const VMTP = 81;
+    /// Secure VMTP
+    pub const SVMTP = 82;
+    /// Banyon VINES
+    pub const VINES = 83;
+    /// TTP
+    pub const TTP = 84;
+    /// NSFNET-IGP
+    pub const IGP = 85;
+    /// dissimilar gateway prot.
+    pub const DGP = 86;
+    /// TCF
+    pub const TCF = 87;
+    /// Cisco/GXS IGRP
+    pub const IGRP = 88;
+    /// OSPFIGP
+    pub const OSPFIGP = 89;
+    /// Strite RPC protocol
+    pub const SRPC = 90;
+    /// Locus Address Resoloution
+    pub const LARP = 91;
+    /// Multicast Transport
+    pub const MTP = 92;
+    /// AX.25 Frames
+    pub const AX25 = 93;
+    /// IP encapsulated in IP
+    pub const IPEIP = 94;
+    /// Mobile Int.ing control
+    pub const MICP = 95;
+    /// Semaphore Comm. security
+    pub const SCCSP = 96;
+    /// Ethernet IP encapsulation
+    pub const ETHERIP = 97;
+    /// encapsulation header
+    pub const ENCAP = 98;
+    /// any private encr. scheme
+    pub const APES = 99;
+    /// GMTP
+    pub const GMTP = 100;
+    /// payload compression (IPComp)
+    pub const IPCOMP = 108;
+    /// SCTP
+    pub const SCTP = 132;
+    /// IPv6 Mobility Header
+    pub const MH = 135;
+    /// UDP-Lite
+    pub const UDPLITE = 136;
+    /// IP6 Host Identity Protocol
+    pub const HIP = 139;
+    /// IP6 Shim6 Protocol
+    pub const SHIM6 = 140;
+    /// Protocol Independent Mcast
+    pub const PIM = 103;
+    /// CARP
+    pub const CARP = 112;
+    /// PGM
+    pub const PGM = 113;
+    /// MPLS-in-IP
+    pub const MPLS = 137;
+    /// PFSYNC
+    pub const PFSYNC = 240;
+    /// Reserved
+    pub const RESERVED_253 = 253;
+    /// Reserved
+    pub const RESERVED_254 = 254;
+};
+
+pub const SOL = struct {
+    pub const SOCKET = 0xffff;
+};
+
+pub const socklen_t = u32;
+
+pub const addrinfo = extern struct {
+    flags: i32,
+    family: i32,
+    socktype: i32,
+    protocol: i32,
+    addrlen: socklen_t,
+    canonname: ?[*:0]u8,
+    addr: ?*sockaddr,
+    next: ?*addrinfo,
+
+    comptime {
+        const size = 48;
+        if (@sizeOf(@This()) != size) {
+            @compileError(std.fmt.comptimePrint("expected size {d} bytes, found {d}", .{ size, @sizeOf(@This()) }));
+        }
+    }
+};
+
+pub const SHUT = enum(c_int) {
+    // zig fmt: off
+    RD   = 0, // shut down the reading side
+    WR   = 1, // shut down the writing side
+    RDWR = 2, // shut down both sides
+    _,
+    // zig fmt: on
+};
+
+pub const kinfo_file = extern struct {
+    /// Size of this record.
+    /// A zero value is for the sentinel record at the end of an array.
+    structsize: c_int,
+    /// Descriptor type.
+    type: c_int,
+    /// Array index.
+    fd: fd_t,
+    /// Reference count.
+    ref_count: c_int,
+    /// Flags.
+    flags: c_int,
+    // 64bit padding.
+    _pad0: c_int,
+    /// Seek location.
+    offset: i64,
+    un: extern union {
+        socket: extern struct {
+            /// Sendq size.
+            sendq: u32,
+            /// Socket domain.
+            domain: c_int,
+            /// Socket type.
+            type: c_int,
+            /// Socket protocol.
+            protocol: c_int,
+            /// Socket address.
+            address: sockaddr.storage,
+            /// Peer address.
+            peer: sockaddr.storage,
+            /// Address of so_pcb.
+            pcb: u64,
+            /// Address of inp_ppcb.
+            inpcb: u64,
+            /// Address of unp_conn.
+            unpconn: u64,
+            /// Send buffer state.
+            snd_sb_state: u16,
+            /// Receive buffer state.
+            rcv_sb_state: u16,
+            /// Recvq size.
+            recvq: u32,
+        },
+        file: extern struct {
+            /// Vnode type.
+            type: i32,
+            // Reserved for future use
+            _spare1: [3]i32,
+            _spare2: [30]u64,
+            /// Vnode filesystem id.
+            fsid: u64,
+            /// File device.
+            rdev: u64,
+            /// Global file id.
+            fileid: u64,
+            /// File size.
+            size: u64,
+            /// fsid compat for FreeBSD 11.
+            fsid_freebsd11: u32,
+            /// rdev compat for FreeBSD 11.
+            rdev_freebsd11: u32,
+            /// File mode.
+            mode: u16,
+            // 64bit padding.
+            _pad0: u16,
+            _pad1: u32,
+        },
+        sem: extern struct {
+            _spare0: [4]u32,
+            _spare1: [32]u64,
+            /// Semaphore value.
+            value: u32,
+            /// Semaphore mode.
+            mode: u16,
+        },
+        pipe: extern struct {
+            _spare1: [4]u32,
+            _spare2: [32]u64,
+            addr: u64,
+            peer: u64,
+            buffer_cnt: u32,
+            // 64bit padding.
+            kf_pipe_pad0: [3]u32,
+        },
+        proc: extern struct {
+            _spare1: [4]u32,
+            _spare2: [32]u64,
+            pid: pid_t,
+        },
+        eventfd: extern struct {
+            value: u64,
+            flags: u32,
+        },
+    },
+    /// Status flags.
+    status: u16,
+    // 32-bit alignment padding.
+    _pad1: u16,
+    // Reserved for future use.
+    _spare: c_int,
+    /// Capability rights.
+    cap_rights: sys.cap_rights,
+    /// Reserved for future cap_rights
+    _cap_spare: u64,
+    /// Path to file, if any.
+    path: [PATH_MAX - 1:0]u8,
+
+    comptime {
+        const size = 1392;
+        if (@sizeOf(@This()) != size) {
+            @compileError(std.fmt.comptimePrint("expected size {d} bytes, found {d}", .{ size, @sizeOf(@This()) }));
+        }
+
+        const alignment = 8;
+        if (@alignOf(@This()) != alignment) {
+            @compileError(std.fmt.comptimePrint("expected alignment of {d} bytes, found {d}", .{ alignment, @alignOf(@This()) }));
+        }
+    }
+};
+
+pub const CAP_RIGHTS_VERSION = 0;
+
+pub const cap_rights = extern struct {
+    rights: [CAP_RIGHTS_VERSION + 2]u64,
 };

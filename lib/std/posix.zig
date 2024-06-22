@@ -84,7 +84,6 @@ pub const POSIX_FADV = system.POSIX_FADV;
 pub const PR = system.PR;
 pub const PROT = system.PROT;
 pub const REG = system.REG;
-pub const RLIM = system.RLIM;
 pub const RR = system.RR;
 pub const S = system.S;
 pub const SA = system.SA;
@@ -106,6 +105,7 @@ pub const TCSA = system.TCSA;
 pub const TCP = system.TCP;
 pub const VDSO = system.VDSO;
 pub const W = system.W;
+pub const access_mode_t = system.access_mode_t;
 pub const addrinfo = system.addrinfo;
 pub const blkcnt_t = system.blkcnt_t;
 pub const blksize_t = system.blksize_t;
@@ -134,9 +134,9 @@ pub const port_t = system.port_t;
 pub const port_event = system.port_event;
 pub const port_notify = system.port_notify;
 pub const file_obj = system.file_obj;
-pub const rlim_t = system.rlim_t;
-pub const rlimit_t = system.rlimit_t;
 pub const rlimit_resource_t = system.rlimit_resource_t;
+pub const rlimit_t = system.rlimit_t;
+pub const rlimit_value_t = system.rlimit_value_t;
 pub const rusage_t = system.rusage_t;
 pub const sa_family_t = system.sa_family_t;
 pub const sigaction_t = system.sigaction_t;
@@ -167,17 +167,6 @@ pub const tc_iflag_t = system.tc_iflag_t;
 pub const tc_oflag_t = system.tc_oflag_t;
 pub const tc_cflag_t = system.tc_cflag_t;
 pub const tc_lflag_t = system.tc_lflag_t;
-
-pub const F_OK = system.F_OK;
-pub const R_OK = system.R_OK;
-pub const W_OK = system.W_OK;
-pub const X_OK = system.X_OK;
-
-pub const ACCMODE = enum(u2) {
-    RDONLY = 0,
-    WRONLY = 1,
-    RDWR = 2,
-};
 
 pub const LOG = struct {
     /// system is unusable
@@ -307,7 +296,7 @@ pub const FChmodAtError = FChmodError || error{
 ///     different filesystems[1].
 ///
 /// [1]: https://sourceware.org/legacy-ml/libc-alpha/2020-02/msg00467.html.
-pub inline fn fchmodat(dirfd: fd_t, path: []const u8, mode: mode_t, flags: u32) FChmodAtError!void {
+pub inline fn fchmodat(dirfd: fd_t, path: []const u8, mode: mode_t, flags: system.AT) FChmodAtError!void {
     if (!fs.has_executable_bit) @compileError("fchmodat unsupported by target OS");
 
     // No special handling for linux is needed if we can use the libc fallback
@@ -324,7 +313,7 @@ pub inline fn fchmodat(dirfd: fd_t, path: []const u8, mode: mode_t, flags: u32) 
     return fchmodat2(dirfd, path, mode, flags);
 }
 
-fn fchmodat1(dirfd: fd_t, path: []const u8, mode: mode_t, flags: u32) FChmodAtError!void {
+fn fchmodat1(dirfd: fd_t, path: []const u8, mode: mode_t, flags: system.AT) FChmodAtError!void {
     const path_c = try toPosixPath(path);
     while (true) {
         const rc = system.fchmodat(dirfd, &path_c, mode, flags);
@@ -351,7 +340,7 @@ fn fchmodat1(dirfd: fd_t, path: []const u8, mode: mode_t, flags: u32) FChmodAtEr
     }
 }
 
-fn fchmodat2(dirfd: fd_t, path: []const u8, mode: mode_t, flags: u32) FChmodAtError!void {
+fn fchmodat2(dirfd: fd_t, path: []const u8, mode: mode_t, flags: system.AT) FChmodAtError!void {
     const global = struct {
         var has_fchmodat2: bool = true;
     };
@@ -669,7 +658,7 @@ pub fn abort() noreturn {
 
 pub const RaiseError = UnexpectedError;
 
-pub fn raise(sig: u8) RaiseError!void {
+pub fn raise(sig: system.SIG) RaiseError!void {
     if (builtin.link_libc) {
         switch (errno(system.raise(sig))) {
             .SUCCESS => return,
@@ -3546,9 +3535,9 @@ pub fn shutdown(sock: socket_t, how: ShutdownHow) ShutdownError!void {
         };
     } else {
         const rc = system.shutdown(sock, switch (how) {
-            .recv => SHUT.RD,
-            .send => SHUT.WR,
-            .both => SHUT.RDWR,
+            .recv => .RD,
+            .send => .WR,
+            .both => .RDWR,
         });
         switch (errno(rc)) {
             .SUCCESS => return,
@@ -4701,7 +4690,7 @@ pub const AccessError = error{
 ///
 /// On Windows, `mode` is ignored. This is a POSIX API that is only partially supported by
 /// Windows. See `fs` for the cross-platform file system API.
-pub fn access(path: []const u8, mode: u32) AccessError!void {
+pub fn access(path: []const u8, mode: access_mode_t) AccessError!void {
     if (native_os == .windows) {
         const path_w = windows.sliceToPrefixedFileW(null, path) catch |err| switch (err) {
             error.AccessDenied => return error.PermissionDenied,
@@ -4717,7 +4706,7 @@ pub fn access(path: []const u8, mode: u32) AccessError!void {
 }
 
 /// Same as `access` except `path` is null-terminated.
-pub fn accessZ(path: [*:0]const u8, mode: u32) AccessError!void {
+pub fn accessZ(path: [*:0]const u8, mode: access_mode_t) AccessError!void {
     if (native_os == .windows) {
         const path_w = windows.cStrToPrefixedFileW(null, path) catch |err| switch (err) {
             error.AccessDenied => return error.PermissionDenied,
@@ -4757,7 +4746,7 @@ pub fn accessZ(path: [*:0]const u8, mode: u32) AccessError!void {
 ///
 /// On Windows, `mode` is ignored. This is a POSIX API that is only partially supported by
 /// Windows. See `fs` for the cross-platform file system API.
-pub fn faccessat(dirfd: fd_t, path: []const u8, mode: u32, flags: u32) AccessError!void {
+pub fn faccessat(dirfd: fd_t, path: []const u8, mode: access_mode_t, flags: system.AT) AccessError!void {
     if (native_os == .windows) {
         const path_w = try windows.sliceToPrefixedFileW(dirfd, path);
         return faccessatW(dirfd, path_w.span().ptr);
@@ -4773,21 +4762,21 @@ pub fn faccessat(dirfd: fd_t, path: []const u8, mode: u32, flags: u32) AccessErr
             else => |e| return e,
         };
 
-        if (mode != F_OK) {
+        if (mode != access_mode_t{}) {
             var directory: wasi.fdstat_t = undefined;
             if (wasi.fd_fdstat_get(resolved.dir_fd, &directory) != .SUCCESS) {
                 return error.PermissionDenied;
             }
 
             var rights: wasi.rights_t = .{};
-            if (mode & R_OK != 0) {
+            if (mode.READ) {
                 if (st.filetype == .DIRECTORY) {
                     rights.FD_READDIR = true;
                 } else {
                     rights.FD_READ = true;
                 }
             }
-            if (mode & W_OK != 0) {
+            if (mode.WRITE) {
                 rights.FD_WRITE = true;
             }
             // No validation for X_OK
@@ -4806,7 +4795,7 @@ pub fn faccessat(dirfd: fd_t, path: []const u8, mode: u32, flags: u32) AccessErr
 }
 
 /// Same as `faccessat` except the path parameter is null-terminated.
-pub fn faccessatZ(dirfd: fd_t, path: [*:0]const u8, mode: u32, flags: u32) AccessError!void {
+pub fn faccessatZ(dirfd: fd_t, path: [*:0]const u8, mode: access_mode_t, flags: system.AT) AccessError!void {
     if (native_os == .windows) {
         const path_w = try windows.cStrToPrefixedFileW(dirfd, path);
         return faccessatW(dirfd, path_w.span().ptr);
@@ -5399,8 +5388,8 @@ pub fn realpathW(pathname: []const u16, out_buffer: *[max_path_bytes]u8) RealPat
 /// Spurious wakeups are possible and no precision of timing is guaranteed.
 pub fn nanosleep(seconds: u64, nanoseconds: u64) void {
     var req = timespec_t{
-        .tv_sec = cast(isize, seconds) orelse maxInt(isize),
-        .tv_nsec = cast(isize, nanoseconds) orelse maxInt(isize),
+        .sec = cast(isize, seconds) orelse maxInt(isize),
+        .nsec = cast(isize, nanoseconds) orelse maxInt(isize),
     };
     var rem: timespec_t = undefined;
     while (true) {
@@ -5517,8 +5506,8 @@ pub fn clock_gettime(clk_id: clockid_t, tp: *timespec_t) ClockGetTimeError!void 
         switch (system.clock_time_get(@bitCast(clk_id), 1, &ts)) {
             .SUCCESS => {
                 tp.* = .{
-                    .tv_sec = @intCast(ts / std.time.ns_per_s),
-                    .tv_nsec = @intCast(ts % std.time.ns_per_s),
+                    .sec = @intCast(ts / std.time.ns_per_s),
+                    .nsec = @intCast(ts % std.time.ns_per_s),
                 };
             },
             .INVAL => return error.UnsupportedClock,
@@ -5534,8 +5523,8 @@ pub fn clock_gettime(clk_id: clockid_t, tp: *timespec_t) ClockGetTimeError!void 
             const ft64 = (@as(u64, ft.dwHighDateTime) << 32) | ft.dwLowDateTime;
             const ft_per_s = std.time.ns_per_s / 100;
             tp.* = .{
-                .tv_sec = @as(i64, @intCast(ft64 / ft_per_s)) + std.time.epoch.windows,
-                .tv_nsec = @as(c_long, @intCast(ft64 % ft_per_s)) * 100,
+                .sec = @as(i64, @intCast(ft64 / ft_per_s)) + std.time.epoch.windows,
+                .nsec = @as(c_long, @intCast(ft64 % ft_per_s)) * 100,
             };
             return;
         } else {
@@ -5557,8 +5546,8 @@ pub fn clock_getres(clk_id: clockid_t, res: *timespec_t) ClockGetTimeError!void 
         var ts: timestamp_t = undefined;
         switch (system.clock_res_get(@bitCast(clk_id), &ts)) {
             .SUCCESS => res.* = .{
-                .tv_sec = @intCast(ts / std.time.ns_per_s),
-                .tv_nsec = @intCast(ts % std.time.ns_per_s),
+                .sec = @intCast(ts / std.time.ns_per_s),
+                .nsec = @intCast(ts % std.time.ns_per_s),
             },
             .INVAL => return error.UnsupportedClock,
             else => |err| return unexpectedErrno(err),
@@ -5756,8 +5745,8 @@ pub fn res_mkquery(
     // Make a reasonably unpredictable id
     var ts: timespec_t = undefined;
     clock_gettime(.REALTIME, &ts) catch {};
-    const UInt = std.meta.Int(.unsigned, @bitSizeOf(@TypeOf(ts.tv_nsec)));
-    const unsec: UInt = @bitCast(ts.tv_nsec);
+    const UInt = std.meta.Int(.unsigned, @bitSizeOf(@TypeOf(ts.nsec)));
+    const unsec: UInt = @bitCast(ts.nsec);
     const id: u32 = @truncate(unsec + unsec / 65536);
     q[0] = @truncate(id / 256);
     q[1] = @truncate(id);
@@ -6706,7 +6695,7 @@ pub const MemFdCreateError = error{
     SystemOutdated,
 } || UnexpectedError;
 
-pub fn memfd_createZ(name: [*:0]const u8, flags: u32) MemFdCreateError!fd_t {
+pub fn memfd_createZ(name: [*:0]const u8, flags: O) MemFdCreateError!fd_t {
     switch (native_os) {
         .linux => {
             // memfd_create is available only in glibc versions starting with 2.27.
@@ -6742,7 +6731,7 @@ pub fn memfd_createZ(name: [*:0]const u8, flags: u32) MemFdCreateError!fd_t {
     }
 }
 
-pub fn memfd_create(name: []const u8, flags: u32) MemFdCreateError!fd_t {
+pub fn memfd_create(name: []const u8, flags: O) MemFdCreateError!fd_t {
     var buffer: [NAME_MAX - "memfd:".len - 1:0]u8 = undefined;
     if (name.len > buffer.len) return error.NameTooLong;
     @memcpy(buffer[0..name.len], name);

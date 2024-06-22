@@ -438,7 +438,7 @@ pub const Request = struct {
         }
 
         var chunk_header_buffer: [18]u8 = undefined;
-        var iovecs: [max_extra_headers * 4 + 3]std.posix.iovec_const = undefined;
+        var iovecs: [max_extra_headers * 4 + 3]std.posix.iovec_const_t = undefined;
         var iovecs_len: usize = 0;
 
         iovecs[iovecs_len] = .{
@@ -910,7 +910,7 @@ pub const Response = struct {
 
         if (bytes.len + r.send_buffer_end > r.send_buffer.len) {
             const send_buffer_len = r.send_buffer_end - r.send_buffer_start;
-            var iovecs: [2]std.posix.iovec_const = .{
+            var iovecs: [2]std.posix.iovec_const_t = .{
                 .{
                     .base = r.send_buffer.ptr + r.send_buffer_start,
                     .len = send_buffer_len,
@@ -957,7 +957,7 @@ pub const Response = struct {
             var header_buf: [18]u8 = undefined;
             const chunk_header = std.fmt.bufPrint(&header_buf, "{x}\r\n", .{chunk_len}) catch unreachable;
 
-            var iovecs: [5]std.posix.iovec_const = .{
+            var iovecs: [5]std.posix.iovec_const_t = .{
                 .{
                     .base = r.send_buffer.ptr + r.send_buffer_start,
                     .len = send_buffer_len - r.chunk_len,
@@ -1038,7 +1038,7 @@ pub const Response = struct {
         var header_buf: [18]u8 = undefined;
         const chunk_header = std.fmt.bufPrint(&header_buf, "{x}\r\n", .{r.chunk_len}) catch unreachable;
 
-        var iovecs: [max_trailers * 4 + 5]std.posix.iovec_const = undefined;
+        var iovecs: [max_trailers * 4 + 5]std.posix.iovec_const_t = undefined;
         var iovecs_len: usize = 0;
 
         iovecs[iovecs_len] = .{

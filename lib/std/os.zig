@@ -162,7 +162,7 @@ pub fn getFdPath(fd: std.posix.fd_t, out_buffer: *[MAX_PATH_BYTES]u8) std.posix.
         .freebsd => {
             if (comptime builtin.os.isAtLeast(.freebsd, .{ .major = 13, .minor = 0, .patch = 0 }) orelse false) {
                 var kfile: std.c.kinfo_file = undefined;
-                kfile.structsize = std.c.KINFO_FILE_SIZE;
+                kfile.structsize = @sizeOf(std.c.kinfo_file);
                 switch (posix.errno(std.c.fcntl(fd, std.c.F.KINFO, @intFromPtr(&kfile)))) {
                     .SUCCESS => {},
                     .BADF => return error.FileNotFound,

@@ -2415,12 +2415,12 @@ pub fn accessZ(self: Dir, sub_path: [*:0]const u8, flags: File.OpenFlags) Access
         };
         return self.accessW(sub_path_w.span().ptr, flags);
     }
-    const os_mode = switch (flags.mode) {
-        .read_only => @as(u32, posix.F_OK),
-        .write_only => @as(u32, posix.W_OK),
-        .read_write => @as(u32, posix.R_OK | posix.W_OK),
+    const mode: posix.access_mode_t = switch (flags.mode) {
+        .read_only => .{ .READ = true },
+        .write_only => .{ .WRITE = true },
+        .read_write => .{ .READ = true, .WRITE = true },
     };
-    const result = posix.faccessatZ(self.fd, sub_path, os_mode, 0);
+    const result = posix.faccessatZ(self.fd, sub_path, mode, .{});
     return result;
 }
 
