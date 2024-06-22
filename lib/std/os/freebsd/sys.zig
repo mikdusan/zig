@@ -588,6 +588,21 @@ pub const setuid = if (@hasField(sys.SYS, "setuid"))
 else
     std.missing_feature;
 
+pub const sigaction = if (@hasField(sys.SYS, "sigaction@5"))
+    struct {
+        fn sigaction(sig: sys.SIG, noalias act: ?*const sys.sigaction_t, noalias oact: ?*sys.sigaction_t) c_int {
+            const rv = sys.syscall3_errno(
+                .@"sigaction@5",
+                @as(u32, @bitCast(@intFromEnum(sig))),
+                @intFromPtr(act),
+                @intFromPtr(oact),
+            );
+            return @bitCast(@as(u32, @truncate(rv)));
+        }
+    }.sigaction
+else
+    std.missing_feature;
+
 pub const stat = if (hasFeature(.fstatat))
     struct {
         fn stat(noalias path: [*:0]const u8, noalias info: *sys.stat_t) c_int {
