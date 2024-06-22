@@ -61,7 +61,7 @@ fn Test(NS: type) type {
             var arena_s = std.heap.ArenaAllocator.init(testing.allocator);
             defer arena_s.deinit();
             const arena = arena_s.allocator();
-            var tmp = try TmpDir.init(arena);
+            var tmp = try TmpDir.init(arena, .{});
             defer tmp.cleanup();
 
             const file_path = try std.fs.path.joinZ(arena, &.{ tmp.path, "close_me.txt" });
@@ -76,7 +76,7 @@ fn Test(NS: type) type {
             var arena_s = std.heap.ArenaAllocator.init(testing.allocator);
             defer arena_s.deinit();
             const arena = arena_s.allocator();
-            var tmp = try TmpDir.init(arena);
+            var tmp = try TmpDir.init(arena, .{});
             defer tmp.cleanup();
 
             const file_path = try std.fs.path.joinZ(arena, &.{ tmp.path, "create_me.txt" });
@@ -87,13 +87,18 @@ fn Test(NS: type) type {
             try expect.sentinelError(-1, .NOENT, NS.creat(bogus_path, NS.default.file_mode));
         }
 
+        test "exit" {
+            if (!comptime NS.hasFeature(.exit)) return error.SkipZigTest;
+            _ = &NS.exit;
+        }
+
         test "fstat" {
             if (!comptime NS.hasFeature(.fstat)) return error.SkipZigTest;
 
             var arena_s = std.heap.ArenaAllocator.init(testing.allocator);
             defer arena_s.deinit();
             const arena = arena_s.allocator();
-            var tmp = try TmpDir.init(arena);
+            var tmp = try TmpDir.init(arena, .{});
             defer tmp.cleanup();
 
             const basename = "tiny.txt";
@@ -112,7 +117,7 @@ fn Test(NS: type) type {
             var arena_s = std.heap.ArenaAllocator.init(testing.allocator);
             defer arena_s.deinit();
             const arena = arena_s.allocator();
-            var tmp = try TmpDir.init(arena);
+            var tmp = try TmpDir.init(arena, .{});
             defer tmp.cleanup();
 
             const basename = "tiny.txt";
@@ -131,7 +136,7 @@ fn Test(NS: type) type {
             var arena_s = std.heap.ArenaAllocator.init(testing.allocator);
             defer arena_s.deinit();
             const arena = arena_s.allocator();
-            var tmp = try TmpDir.init(arena);
+            var tmp = try TmpDir.init(arena, .{ .iterate = true });
             defer tmp.cleanup();
 
             const file = try tmp.dir.createFile("empty.txt", .{});
@@ -170,7 +175,7 @@ fn Test(NS: type) type {
             var arena_s = std.heap.ArenaAllocator.init(testing.allocator);
             defer arena_s.deinit();
             const arena = arena_s.allocator();
-            var tmp = try TmpDir.init(arena);
+            var tmp = try TmpDir.init(arena, .{ .iterate = true });
             defer tmp.cleanup();
 
             const file = try tmp.dir.createFile("empty.txt", .{});
@@ -219,14 +224,14 @@ fn Test(NS: type) type {
             if (!comptime NS.hasFeature(.getpriority)) return error.SkipZigTest;
 
             {
-                NS.__error().* = .SUCCESS;
+                NS.errno_location().* = .SUCCESS;
                 const pr = NS.getpriority(.PROCESS, 0);
                 try expect.errno(.SUCCESS);
                 try testing.expect(pr >= NS.priority.MIN);
                 try testing.expect(pr <= NS.priority.MAX);
             }
             {
-                NS.__error().* = .SUCCESS;
+                NS.errno_location().* = .SUCCESS;
                 _ = NS.getpriority(.PROCESS, invalid_priority);
                 try expect.errno(.SRCH);
             }
@@ -286,7 +291,7 @@ fn Test(NS: type) type {
             var arena_s = std.heap.ArenaAllocator.init(testing.allocator);
             defer arena_s.deinit();
             const arena = arena_s.allocator();
-            var tmp = try TmpDir.init(arena);
+            var tmp = try TmpDir.init(arena, .{});
             defer tmp.cleanup();
 
             const realname = "1234567890.txt";
@@ -307,7 +312,7 @@ fn Test(NS: type) type {
             var arena_s = std.heap.ArenaAllocator.init(testing.allocator);
             defer arena_s.deinit();
             const arena = arena_s.allocator();
-            var tmp = try TmpDir.init(arena);
+            var tmp = try TmpDir.init(arena, .{});
             defer tmp.cleanup();
 
             const dir_path = try std.fs.path.joinZ(arena, &.{ tmp.path, "create_me" });
@@ -323,7 +328,7 @@ fn Test(NS: type) type {
             var arena_s = std.heap.ArenaAllocator.init(testing.allocator);
             defer arena_s.deinit();
             const arena = arena_s.allocator();
-            var tmp = try TmpDir.init(arena);
+            var tmp = try TmpDir.init(arena, .{});
             defer tmp.cleanup();
 
             const dir_path = try std.fs.path.joinZ(arena, &.{ tmp.path, "create_me" });
@@ -339,7 +344,7 @@ fn Test(NS: type) type {
             var arena_s = std.heap.ArenaAllocator.init(testing.allocator);
             defer arena_s.deinit();
             const arena = arena_s.allocator();
-            var tmp = try TmpDir.init(arena);
+            var tmp = try TmpDir.init(arena, .{});
             defer tmp.cleanup();
 
             const dir_path = try std.fs.path.joinZ(arena, &.{ tmp.path, "create_me" });
@@ -355,7 +360,7 @@ fn Test(NS: type) type {
             var arena_s = std.heap.ArenaAllocator.init(testing.allocator);
             defer arena_s.deinit();
             const arena = arena_s.allocator();
-            var tmp = try TmpDir.init(arena);
+            var tmp = try TmpDir.init(arena, .{});
             defer tmp.cleanup();
 
             const dir_path = try std.fs.path.joinZ(arena, &.{ tmp.path, "create_me" });
@@ -379,7 +384,7 @@ fn Test(NS: type) type {
             defer arena_s.deinit();
             const arena = arena_s.allocator();
 
-            var tmp = try TmpDir.init(arena);
+            var tmp = try TmpDir.init(arena, .{});
             defer tmp.cleanup();
             const file_path = try std.fs.path.joinZ(arena, &.{ tmp.path, "create_me.txt" });
 
@@ -394,7 +399,7 @@ fn Test(NS: type) type {
             defer arena_s.deinit();
             const arena = arena_s.allocator();
 
-            var tmp = try TmpDir.init(arena);
+            var tmp = try TmpDir.init(arena, .{});
             defer tmp.cleanup();
             const file_path = try std.fs.path.joinZ(arena, &.{ tmp.path, "create_me.txt" });
 
@@ -440,14 +445,14 @@ fn Test(NS: type) type {
         test "setpriority" {
             if (!comptime NS.hasFeature(.setpriority)) return error.SkipZigTest;
 
-            NS.__error().* = .SUCCESS;
+            NS.errno_location().* = .SUCCESS;
             const pr0 = NS.getpriority(.PROCESS, 0);
             try expect.errno(.SUCCESS);
 
             const pr1: @TypeOf(pr0) = @min(pr0 + 1, NS.priority.MAX);
             _ = try expect.sentinelNoError(-1, NS.setpriority(.PROCESS, 0, pr1));
 
-            NS.__error().* = .SUCCESS;
+            NS.errno_location().* = .SUCCESS;
             const pr2 = NS.getpriority(.PROCESS, 0);
             try expect.errno(.SUCCESS);
             try testing.expectEqual(pr1, pr2);
@@ -488,7 +493,7 @@ fn Test(NS: type) type {
             var arena_s = std.heap.ArenaAllocator.init(testing.allocator);
             defer arena_s.deinit();
             const arena = arena_s.allocator();
-            var tmp = try TmpDir.init(arena);
+            var tmp = try TmpDir.init(arena, .{});
             defer tmp.cleanup();
 
             const basename = "tiny.txt";
@@ -514,14 +519,14 @@ fn Test(NS: type) type {
 
             var ss0: sys.sigset_t = .{};
             try testing.expectEqual(true, ss0.is_empty());
-            try testing.expectEqual(false, ss0.is_set(.HUP));
+            try testing.expectEqual(false, ss0.is_member(.HUP));
 
             ss0.empty();
             try testing.expectEqual(true, ss0.is_empty());
 
             ss0.fill();
             try testing.expectEqual(true, ss0.is_full());
-            try testing.expectEqual(true, ss0.is_set(.HUP));
+            try testing.expectEqual(true, ss0.is_member(.HUP));
 
             var ss1: sys.sigset_t = .{};
             ss0.empty();
@@ -529,23 +534,35 @@ fn Test(NS: type) type {
             ss0.and_with(ss1);
             try testing.expectEqual(true, ss0.is_empty());
 
+            ss0.empty();
             ss1.fill();
             ss0.and_with(ss1);
             try testing.expectEqual(true, ss0.is_empty());
             ss0.or_with(ss1);
             try testing.expectEqual(true, ss0.is_full());
 
-            ss0.fill();
+            ss0.empty();
+            ss0.add(.HUP);
+            ss0.add(.QUIT);
+            try testing.expectEqual(true, ss0.is_member(.HUP));
+            try testing.expectEqual(false, ss0.is_member(.INT));
+            try testing.expectEqual(true, ss0.is_member(.QUIT));
             ss1.empty();
-            ss1.set(.HUP);
-            ss0.and_with(ss1);
-            try testing.expectEqual(true, ss0.is_set(.HUP));
-            try testing.expectEqual(false, ss0.is_set(.QUIT));
+            ss1.add(.INT);
+            ss1.add(.QUIT);
+            ss1.and_with(ss0);
+            try testing.expectEqual(false, ss1.is_member(.HUP));
+            try testing.expectEqual(false, ss1.is_member(.INT));
+            try testing.expectEqual(true, ss1.is_member(.QUIT));
 
+            ss0.empty();
+            ss0.add(.HUP);
             ss1.empty();
+            ss1.add(.INT);
             ss0.assign_from(ss1);
-            try testing.expectEqual(false, ss0.is_set(.HUP));
-            try testing.expectEqual(true, ss0.is_empty());
+            try testing.expectEqual(false, ss0.is_member(.HUP));
+            try testing.expectEqual(true, ss0.is_member(.INT));
+            try testing.expectEqual(false, ss0.is_member(.QUIT));
         }
 
         test "symlink" {
@@ -554,7 +571,7 @@ fn Test(NS: type) type {
             var arena_s = std.heap.ArenaAllocator.init(testing.allocator);
             defer arena_s.deinit();
             const arena = arena_s.allocator();
-            var tmp = try TmpDir.init(arena);
+            var tmp = try TmpDir.init(arena, .{});
             defer tmp.cleanup();
 
             const realname = "real.txt";
@@ -574,7 +591,7 @@ fn Test(NS: type) type {
             var arena_s = std.heap.ArenaAllocator.init(testing.allocator);
             defer arena_s.deinit();
             const arena = arena_s.allocator();
-            var tmp = try TmpDir.init(arena);
+            var tmp = try TmpDir.init(arena, .{});
             defer tmp.cleanup();
 
             const realname = "real.txt";
@@ -590,7 +607,7 @@ fn Test(NS: type) type {
         test "write" {
             if (!comptime NS.hasFeature(.write)) return error.SkipZigTest;
 
-            const fd = try expect.sentinelNoError(-1, NS.open("/dev/null", .{ .WRONLY = true }, 0));
+            const fd = try expect.sentinelNoError(-1, NS.open("/dev/null", .{ .ACCMODE = .WRONLY }, 0));
             var buf: [4]u8 = .{ 0x0, 0x1, 0x2, 0x3 };
             _ = try expect.sentinelNoError(-1, NS.write(fd, &buf, buf.len));
             _ = try expect.sentinelNoError(-1, NS.close(fd));
@@ -608,7 +625,7 @@ const TmpDir = struct {
     const random_bytes_count = 12;
     const basename_len = std.fs.base64_encoder.calcSize(random_bytes_count);
 
-    pub fn init(arena: std.mem.Allocator) !TmpDir {
+    pub fn init(arena: std.mem.Allocator, opts: std.fs.Dir.OpenDirOptions) !TmpDir {
         var self: TmpDir = undefined;
 
         var random_bytes: [TmpDir.random_bytes_count]u8 = undefined;
@@ -621,7 +638,7 @@ const TmpDir = struct {
         self.parent_dir = try cwd.makeOpenPath(parent_path, .{});
         errdefer self.parent_dir.close();
 
-        self.dir = try self.parent_dir.makeOpenPath(&self.basename, .{});
+        self.dir = try self.parent_dir.makeOpenPath(&self.basename, opts);
         errdefer self.dir.close();
 
         self.path = try std.fs.path.join(arena, &.{ ".zig-cache", "tmp", &self.basename });

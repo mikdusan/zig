@@ -55,7 +55,6 @@ pub const AF_SUN = system.AF_SUN;
 pub const ARCH = system.ARCH;
 pub const AT = system.AT;
 pub const AT_SUN = system.AT_SUN;
-pub const CLOCK = system.CLOCK;
 pub const CPU_COUNT = system.CPU_COUNT;
 pub const CTL = system.CTL;
 pub const DT = system.DT;
@@ -65,11 +64,9 @@ pub const F = system.F;
 pub const FD_CLOEXEC = system.FD_CLOEXEC;
 pub const Flock = system.Flock;
 pub const HOST_NAME_MAX = system.HOST_NAME_MAX;
-pub const HW = system.HW;
 pub const IFNAMESIZE = system.IFNAMESIZE;
 pub const IOV_MAX = system.IOV_MAX;
 pub const IPPROTO = system.IPPROTO;
-pub const KERN = system.KERN;
 pub const Kevent = system.Kevent;
 pub const LOCK = system.LOCK;
 pub const MADV = system.MADV;
@@ -104,8 +101,6 @@ pub const STDERR_FILENO = system.STDERR_FILENO;
 pub const STDIN_FILENO = system.STDIN_FILENO;
 pub const STDOUT_FILENO = system.STDOUT_FILENO;
 pub const SYS = system.SYS;
-pub const Sigaction = system.Sigaction;
-pub const Stat = system.Stat;
 pub const T = system.T;
 pub const TCSA = system.TCSA;
 pub const TCP = system.TCP;
@@ -115,15 +110,17 @@ pub const addrinfo = system.addrinfo;
 pub const blkcnt_t = system.blkcnt_t;
 pub const blksize_t = system.blksize_t;
 pub const clock_t = system.clock_t;
+pub const clockid_t = system.clockid_t;
 pub const cpu_set_t = system.cpu_set_t;
 pub const dev_t = system.dev_t;
-pub const dl_phdr_info = system.dl_phdr_info;
-pub const empty_sigset = system.empty_sigset;
+pub const dl_phdr_info_t = system.dl_phdr_info_t;
 pub const filled_sigset = system.filled_sigset;
 pub const fd_t = system.fd_t;
 pub const gid_t = system.gid_t;
 pub const ifreq = system.ifreq;
 pub const ino_t = system.ino_t;
+pub const iovec_t = system.iovec_t;
+pub const iovec_const_t = system.iovec_const_t;
 pub const mcontext_t = system.mcontext_t;
 pub const mode_t = system.mode_t;
 pub const msghdr = system.msghdr;
@@ -138,19 +135,21 @@ pub const port_event = system.port_event;
 pub const port_notify = system.port_notify;
 pub const file_obj = system.file_obj;
 pub const rlim_t = system.rlim_t;
-pub const rlimit = system.rlimit;
-pub const rlimit_resource = system.rlimit_resource;
-pub const rusage = system.rusage;
+pub const rlimit_t = system.rlimit_t;
+pub const rlimit_resource_t = system.rlimit_resource_t;
+pub const rusage_t = system.rusage_t;
 pub const sa_family_t = system.sa_family_t;
+pub const sigaction_t = system.sigaction_t;
 pub const siginfo_t = system.siginfo_t;
 pub const sigset_t = system.sigset_t;
 pub const sockaddr = system.sockaddr;
 pub const socklen_t = system.socklen_t;
 pub const stack_t = system.stack_t;
+pub const stat_t = system.stat_t;
 pub const time_t = system.time_t;
-pub const timespec = system.timespec;
+pub const timespec_t = system.timespec_t;
 pub const timestamp_t = system.timestamp_t;
-pub const timeval = system.timeval;
+pub const timeval_t = system.timeval_t;
 pub const timezone = system.timezone;
 pub const ucontext_t = system.ucontext_t;
 pub const uid_t = system.uid_t;
@@ -173,16 +172,6 @@ pub const F_OK = system.F_OK;
 pub const R_OK = system.R_OK;
 pub const W_OK = system.W_OK;
 pub const X_OK = system.X_OK;
-
-pub const iovec = extern struct {
-    base: [*]u8,
-    len: usize,
-};
-
-pub const iovec_const = extern struct {
-    base: [*]const u8,
-    len: usize,
-};
 
 pub const ACCMODE = enum(u2) {
     RDONLY = 0,
@@ -212,18 +201,10 @@ pub const LOG = struct {
 pub const socket_t = if (native_os == .windows) windows.ws2_32.SOCKET else fd_t;
 
 /// Obtains errno from the return value of a system function call.
-///
-/// For some systems this will obtain the value directly from the syscall return value;
-/// for others it will use a thread-local errno variable. Therefore, this
-/// function only returns a well-defined value when it is called directly after
+/// This function only returns a well-defined value when it is called directly after
 /// the system function call whose errno value is intended to be observed.
 pub fn errno(rc: anytype) E {
-    if (use_libc) {
-        return if (rc == -1) @enumFromInt(std.c._errno().*) else .SUCCESS;
-    }
-    const signed: isize = @bitCast(rc);
-    const int = if (signed > -4096 and signed < 0) -signed else 0;
-    return @enumFromInt(int);
+    return if (rc == -1) system.errno() else .SUCCESS;
 }
 
 /// Closes the file descriptor.
@@ -273,8 +254,8 @@ pub fn fchmod(fd: fd_t, mode: mode_t) FChmodError!void {
     if (!fs.has_executable_bit) @compileError("fchmod unsupported by target OS");
 
     while (true) {
-        const res = system.fchmod(fd, mode);
-        switch (errno(res)) {
+        const rc = system.fchmod(fd, mode);
+        switch (errno(rc)) {
             .SUCCESS => return,
             .INTR => continue,
             .BADF => unreachable,
@@ -346,8 +327,8 @@ pub inline fn fchmodat(dirfd: fd_t, path: []const u8, mode: mode_t, flags: u32) 
 fn fchmodat1(dirfd: fd_t, path: []const u8, mode: mode_t, flags: u32) FChmodAtError!void {
     const path_c = try toPosixPath(path);
     while (true) {
-        const res = system.fchmodat(dirfd, &path_c, mode, flags);
-        switch (errno(res)) {
+        const rc = system.fchmodat(dirfd, &path_c, mode, flags);
+        switch (errno(rc)) {
             .SUCCESS => return,
             .INTR => continue,
             .BADF => unreachable,
@@ -447,8 +428,8 @@ fn fchmodat2(dirfd: fd_t, path: []const u8, mode: mode_t, flags: u32) FChmodAtEr
     var procfs_buf: ["/proc/self/fd/-2147483648\x00".len]u8 = undefined;
     const proc_path = std.fmt.bufPrintZ(procfs_buf[0..], "/proc/self/fd/{d}", .{pathfd}) catch unreachable;
     while (true) {
-        const res = system.chmod(proc_path, mode);
-        switch (errno(res)) {
+        const rc = system.chmod(proc_path, mode);
+        switch (errno(rc)) {
             // Getting NOENT here means that procfs isn't mounted.
             .NOENT => return error.OperationNotSupported,
 
@@ -490,9 +471,8 @@ pub fn fchown(fd: fd_t, owner: ?uid_t, group: ?gid_t) FChownError!void {
     }
 
     while (true) {
-        const res = system.fchown(fd, owner orelse ~@as(uid_t, 0), group orelse ~@as(gid_t, 0));
-
-        switch (errno(res)) {
+        const rc = system.fchown(fd, owner orelse ~@as(uid_t, 0), group orelse ~@as(gid_t, 0));
+        switch (errno(rc)) {
             .SUCCESS => return,
             .INTR => continue,
             .BADF => unreachable, // Can be reached if the fd refers to a directory opened without `OpenDirOptions{ .iterate = true }`
@@ -573,20 +553,14 @@ pub fn getrandom(buffer: []u8) GetRandomError!void {
     if (native_os == .windows) {
         return windows.RtlGenRandom(buffer);
     }
-    if (native_os == .linux or native_os == .freebsd) {
+    if (comptime system.hasFeature(.getrandom)) {
+        // TODO: mike: verify feature is correct for glibc < 2.25.0; e: getrandom not available so sys should be used
         var buf = buffer;
-        const use_c = native_os != .linux or
-            std.c.versionCheck(std.SemanticVersion{ .major = 2, .minor = 25, .patch = 0 });
-
         while (buf.len != 0) {
-            const num_read: usize, const err = if (use_c) res: {
-                const rc = std.c.getrandom(buf.ptr, buf.len, 0);
-                break :res .{ @bitCast(rc), errno(rc) };
-            } else res: {
-                const rc = linux.getrandom(buf.ptr, buf.len, 0);
-                break :res .{ rc, linux.E.init(rc) };
+            const num_read: usize, const err = b: {
+                const rc = system.getrandom(buf.ptr, buf.len, 0);
+                break :b .{ @bitCast(rc), errno(rc) };
             };
-
             switch (err) {
                 .SUCCESS => buf = buf[num_read..],
                 .INVAL => unreachable,
@@ -667,9 +641,9 @@ pub fn abort() noreturn {
         }
 
         // Install default handler so that the tkill below will terminate.
-        const sigact = Sigaction{
+        const sigact = sigaction_t{
             .handler = .{ .handler = SIG.DFL },
-            .mask = empty_sigset,
+            .mask = sigset_t.EMPTY,
             .flags = 0,
         };
         sigaction(SIG.ABRT, &sigact, null) catch |err| switch (err) {
@@ -678,7 +652,8 @@ pub fn abort() noreturn {
 
         _ = linux.tkill(linux.gettid(), SIG.ABRT);
 
-        const sigabrtmask: linux.sigset_t = [_]u32{0} ** 31 ++ [_]u32{1 << (SIG.ABRT - 1)};
+        const sigabrtmask: linux.sigset_t = .{};
+        sigabrtmask.set(.ABRT);
         sigprocmask(SIG.UNBLOCK, &sigabrtmask, null);
 
         // Beyond this point should be unreachable.
@@ -797,10 +772,12 @@ pub fn read(fd: fd_t, buf: []u8) ReadError!usize {
         return windows.ReadFile(fd, buf, null);
     }
     if (native_os == .wasi and !builtin.link_libc) {
-        const iovs = [1]iovec{iovec{
-            .base = buf.ptr,
-            .len = buf.len,
-        }};
+        const iovs: [1]iovec_t = .{
+            .{
+                .base = buf.ptr,
+                .len = buf.len,
+            },
+        };
 
         var nread: usize = undefined;
         switch (wasi.fd_read(fd, &iovs, iovs.len, &nread)) {
@@ -862,7 +839,7 @@ pub fn read(fd: fd_t, buf: []u8) ReadError!usize {
 ///
 /// This function assumes that all vectors, including zero-length vectors, have
 /// a pointer within the address space of the application.
-pub fn readv(fd: fd_t, iov: []const iovec) ReadError!usize {
+pub fn readv(fd: fd_t, iov: []const iovec_t) ReadError!usize {
     if (native_os == .windows) {
         // TODO improve this to use ReadFileScatter
         if (iov.len == 0) return 0;
@@ -933,10 +910,12 @@ pub fn pread(fd: fd_t, buf: []u8, offset: u64) PReadError!usize {
         return windows.ReadFile(fd, buf, offset);
     }
     if (native_os == .wasi and !builtin.link_libc) {
-        const iovs = [1]iovec{iovec{
-            .base = buf.ptr,
-            .len = buf.len,
-        }};
+        const iovs: [1]iovec_t = .{
+            .{
+                .base = buf.ptr,
+                .len = buf.len,
+            },
+        };
 
         var nread: usize = undefined;
         switch (wasi.fd_pread(fd, &iovs, iovs.len, offset, &nread)) {
@@ -1069,7 +1048,7 @@ pub fn ftruncate(fd: fd_t, length: u64) TruncateError!void {
 /// * Darwin
 /// * Windows
 /// On these systems, the read races with concurrent writes to the same file descriptor.
-pub fn preadv(fd: fd_t, iov: []const iovec, offset: u64) PReadError!usize {
+pub fn preadv(fd: fd_t, iov: []const iovec_t, offset: u64) PReadError!usize {
     const have_pread_but_not_preadv = switch (native_os) {
         .windows, .macos, .ios, .watchos, .tvos, .visionos, .haiku => true,
         else => false,
@@ -1187,10 +1166,12 @@ pub fn write(fd: fd_t, bytes: []const u8) WriteError!usize {
     }
 
     if (native_os == .wasi and !builtin.link_libc) {
-        const ciovs = [_]iovec_const{iovec_const{
-            .base = bytes.ptr,
-            .len = bytes.len,
-        }};
+        const ciovs: [1]iovec_const_t = .{
+            .{
+                .base = bytes.ptr,
+                .len = bytes.len,
+            },
+        };
         var nwritten: usize = undefined;
         switch (wasi.fd_write(fd, &ciovs, ciovs.len, &nwritten)) {
             .SUCCESS => return nwritten,
@@ -1260,7 +1241,7 @@ pub fn write(fd: fd_t, bytes: []const u8) WriteError!usize {
 ///
 /// This function assumes that all vectors, including zero-length vectors, have
 /// a pointer within the address space of the application.
-pub fn writev(fd: fd_t, iov: []const iovec_const) WriteError!usize {
+pub fn writev(fd: fd_t, iov: []const iovec_const_t) WriteError!usize {
     if (native_os == .windows) {
         // TODO improve this to use WriteFileScatter
         if (iov.len == 0) return 0;
@@ -1341,11 +1322,12 @@ pub fn pwrite(fd: fd_t, bytes: []const u8, offset: u64) PWriteError!usize {
         return windows.WriteFile(fd, bytes, offset);
     }
     if (native_os == .wasi and !builtin.link_libc) {
-        const ciovs = [1]iovec_const{iovec_const{
-            .base = bytes.ptr,
-            .len = bytes.len,
-        }};
-
+        const ciovs: [1]iovec_const_t = .{
+            .{
+                .base = bytes.ptr,
+                .len = bytes.len,
+            },
+        };
         var nwritten: usize = undefined;
         switch (wasi.fd_pwrite(fd, &ciovs, ciovs.len, offset, &nwritten)) {
             .SUCCESS => return nwritten,
@@ -1423,7 +1405,7 @@ pub fn pwrite(fd: fd_t, bytes: []const u8, offset: u64) PWriteError!usize {
 /// * Windows
 ///
 /// If `iov.len` is larger than `IOV_MAX`, a partial write will occur.
-pub fn pwritev(fd: fd_t, iov: []const iovec_const, offset: u64) PWriteError!usize {
+pub fn pwritev(fd: fd_t, iov: []const iovec_const_t, offset: u64) PWriteError!usize {
     const have_pwrite_but_not_pwritev = switch (native_os) {
         .windows, .macos, .ios, .watchos, .tvos, .visionos, .haiku => true,
         else => false,
@@ -1996,12 +1978,7 @@ pub fn getcwd(out_buffer: []u8) GetCwdError![]u8 {
         return result;
     }
 
-    const err: E = if (builtin.link_libc) err: {
-        const c_err = if (std.c.getcwd(out_buffer.ptr, out_buffer.len)) |_| 0 else std.c._errno().*;
-        break :err @enumFromInt(c_err);
-    } else err: {
-        break :err errno(system.getcwd(out_buffer.ptr, out_buffer.len));
-    };
+    const err: E = if (std.c.getcwd(out_buffer.ptr, out_buffer.len)) |_| .SUCCESS else system.errno();
     switch (err) {
         .SUCCESS => return mem.sliceTo(out_buffer, 0),
         .FAULT => unreachable,
@@ -2464,7 +2441,7 @@ pub fn unlinkatWasi(dirfd: fd_t, file_path: []const u8, flags: u32) UnlinkatErro
 }
 
 /// Same as `unlinkat` but `file_path` is a null-terminated string.
-pub fn unlinkatZ(dirfd: fd_t, file_path_c: [*:0]const u8, flags: u32) UnlinkatError!void {
+pub fn unlinkatZ(dirfd: fd_t, file_path_c: [*:0]const u8, flags: system.AT) UnlinkatError!void {
     if (native_os == .windows) {
         const file_path_w = try windows.cStrToPrefixedFileW(dirfd, file_path_c);
         return unlinkatW(dirfd, file_path_w.span(), flags);
@@ -2824,7 +2801,7 @@ pub fn renameatW(
 /// On Windows, `sub_dir_path` should be encoded as [WTF-8](https://simonsapin.github.io/wtf-8/).
 /// On WASI, `sub_dir_path` should be encoded as valid UTF-8.
 /// On other platforms, `sub_dir_path` is an opaque sequence of bytes with no particular encoding.
-pub fn mkdirat(dir_fd: fd_t, sub_dir_path: []const u8, mode: u32) MakeDirError!void {
+pub fn mkdirat(dir_fd: fd_t, sub_dir_path: []const u8, mode: mode_t) MakeDirError!void {
     if (native_os == .windows) {
         const sub_dir_path_w = try windows.sliceToPrefixedFileW(dir_fd, sub_dir_path);
         return mkdiratW(dir_fd, sub_dir_path_w.span(), mode);
@@ -2836,7 +2813,7 @@ pub fn mkdirat(dir_fd: fd_t, sub_dir_path: []const u8, mode: u32) MakeDirError!v
     }
 }
 
-pub fn mkdiratWasi(dir_fd: fd_t, sub_dir_path: []const u8, mode: u32) MakeDirError!void {
+pub fn mkdiratWasi(dir_fd: fd_t, sub_dir_path: []const u8, mode: mode_t) MakeDirError!void {
     _ = mode;
     switch (wasi.path_create_directory(dir_fd, sub_dir_path.ptr, sub_dir_path.len)) {
         .SUCCESS => return,
@@ -2861,7 +2838,7 @@ pub fn mkdiratWasi(dir_fd: fd_t, sub_dir_path: []const u8, mode: u32) MakeDirErr
 }
 
 /// Same as `mkdirat` except the parameters are null-terminated.
-pub fn mkdiratZ(dir_fd: fd_t, sub_dir_path: [*:0]const u8, mode: u32) MakeDirError!void {
+pub fn mkdiratZ(dir_fd: fd_t, sub_dir_path: [*:0]const u8, mode: mode_t) MakeDirError!void {
     if (native_os == .windows) {
         const sub_dir_path_w = try windows.cStrToPrefixedFileW(dir_fd, sub_dir_path);
         return mkdiratW(dir_fd, sub_dir_path_w.span(), mode);
@@ -2895,7 +2872,7 @@ pub fn mkdiratZ(dir_fd: fd_t, sub_dir_path: [*:0]const u8, mode: u32) MakeDirErr
 }
 
 /// Windows-only. Same as `mkdirat` except the parameter WTF16 LE encoded.
-pub fn mkdiratW(dir_fd: fd_t, sub_path_w: []const u16, mode: u32) MakeDirError!void {
+pub fn mkdiratW(dir_fd: fd_t, sub_path_w: []const u16, mode: mode_t) MakeDirError!void {
     _ = mode;
     const sub_dir_handle = windows.OpenFile(sub_path_w, .{
         .dir = dir_fd,
@@ -2942,7 +2919,7 @@ pub const MakeDirError = error{
 /// On Windows, `dir_path` should be encoded as [WTF-8](https://simonsapin.github.io/wtf-8/).
 /// On WASI, `dir_path` should be encoded as valid UTF-8.
 /// On other platforms, `dir_path` is an opaque sequence of bytes with no particular encoding.
-pub fn mkdir(dir_path: []const u8, mode: u32) MakeDirError!void {
+pub fn mkdir(dir_path: []const u8, mode: mode_t) MakeDirError!void {
     if (native_os == .wasi and !builtin.link_libc) {
         return mkdirat(wasi.AT.FDCWD, dir_path, mode);
     } else if (native_os == .windows) {
@@ -2958,7 +2935,7 @@ pub fn mkdir(dir_path: []const u8, mode: u32) MakeDirError!void {
 /// On Windows, `dir_path` should be encoded as [WTF-8](https://simonsapin.github.io/wtf-8/).
 /// On WASI, `dir_path` should be encoded as valid UTF-8.
 /// On other platforms, `dir_path` is an opaque sequence of bytes with no particular encoding.
-pub fn mkdirZ(dir_path: [*:0]const u8, mode: u32) MakeDirError!void {
+pub fn mkdirZ(dir_path: [*:0]const u8, mode: mode_t) MakeDirError!void {
     if (native_os == .windows) {
         const dir_path_w = try windows.cStrToPrefixedFileW(null, dir_path);
         return mkdirW(dir_path_w.span(), mode);
@@ -2989,7 +2966,7 @@ pub fn mkdirZ(dir_path: [*:0]const u8, mode: u32) MakeDirError!void {
 }
 
 /// Windows-only. Same as `mkdir` but the parameters is WTF16LE encoded.
-pub fn mkdirW(dir_path_w: []const u16, mode: u32) MakeDirError!void {
+pub fn mkdirW(dir_path_w: []const u16, mode: mode_t) MakeDirError!void {
     _ = mode;
     const sub_dir_handle = windows.OpenFile(dir_path_w, .{
         .dir = fs.cwd().fd,
@@ -4260,7 +4237,7 @@ pub fn waitpid(pid: pid_t, flags: u32) WaitPidResult {
     }
 }
 
-pub fn wait4(pid: pid_t, flags: u32, ru: ?*rusage) WaitPidResult {
+pub fn wait4(pid: pid_t, flags: u32, ru: ?*rusage_t) WaitPidResult {
     var status: if (builtin.link_libc) c_int else u32 = undefined;
     while (true) {
         const rc = system.wait4(pid, &status, @intCast(flags), ru);
@@ -4286,16 +4263,16 @@ pub const FStatError = error{
 } || UnexpectedError;
 
 /// Return information about a file descriptor.
-pub fn fstat(fd: fd_t) FStatError!Stat {
+pub fn fstat(fd: fd_t) FStatError!stat_t {
     if (native_os == .wasi and !builtin.link_libc) {
-        return Stat.fromFilestat(try std.os.fstat_wasi(fd));
+        return stat_t.fromFilestat(try std.os.fstat_wasi(fd));
     }
     if (native_os == .windows) {
         @compileError("fstat is not yet implemented on Windows");
     }
 
     const fstat_sym = if (lfs64_abi) system.fstat64 else system.fstat;
-    var stat = mem.zeroes(Stat);
+    var stat = mem.zeroes(stat_t);
     switch (errno(fstat_sym(fd, &stat))) {
         .SUCCESS => return stat,
         .INVAL => unreachable,
@@ -4319,12 +4296,12 @@ pub const FStatAtError = FStatError || error{
 /// On WASI, `pathname` should be encoded as valid UTF-8.
 /// On other platforms, `pathname` is an opaque sequence of bytes with no particular encoding.
 /// See also `fstatatZ` and `std.os.fstatat_wasi`.
-pub fn fstatat(dirfd: fd_t, pathname: []const u8, flags: u32) FStatAtError!Stat {
+pub fn fstatat(dirfd: fd_t, pathname: []const u8, flags: AT) FStatAtError!stat_t {
     if (native_os == .wasi and !builtin.link_libc) {
         const filestat = try std.os.fstatat_wasi(dirfd, pathname, .{
             .SYMLINK_FOLLOW = (flags & AT.SYMLINK_NOFOLLOW) == 0,
         });
-        return Stat.fromFilestat(filestat);
+        return stat_t.fromFilestat(filestat);
     } else if (native_os == .windows) {
         @compileError("fstatat is not yet implemented on Windows");
     } else {
@@ -4335,16 +4312,16 @@ pub fn fstatat(dirfd: fd_t, pathname: []const u8, flags: u32) FStatAtError!Stat 
 
 /// Same as `fstatat` but `pathname` is null-terminated.
 /// See also `fstatat`.
-pub fn fstatatZ(dirfd: fd_t, pathname: [*:0]const u8, flags: u32) FStatAtError!Stat {
+pub fn fstatatZ(dirfd: fd_t, pathname: [*:0]const u8, flags: AT) FStatAtError!stat_t {
     if (native_os == .wasi and !builtin.link_libc) {
         const filestat = try std.os.fstatat_wasi(dirfd, mem.sliceTo(pathname, 0), .{
             .SYMLINK_FOLLOW = (flags & AT.SYMLINK_NOFOLLOW) == 0,
         });
-        return Stat.fromFilestat(filestat);
+        return stat_t.fromFilestat(filestat);
     }
 
     const fstatat_sym = if (lfs64_abi) system.fstatat64 else system.fstatat;
-    var stat = mem.zeroes(Stat);
+    var stat = mem.zeroes(stat_t);
     switch (errno(fstatat_sym(dirfd, pathname, &stat, flags))) {
         .SUCCESS => return stat,
         .INVAL => unreachable,
@@ -4405,7 +4382,7 @@ pub fn kevent(
     kq: i32,
     changelist: []const Kevent,
     eventlist: []Kevent,
-    timeout: ?*const timespec,
+    timeout: ?*const timespec_t,
 ) KEventError!usize {
     while (true) {
         const rc = system.kevent(
@@ -4645,21 +4622,15 @@ pub const MMapError = error{
 pub fn mmap(
     ptr: ?[*]align(mem.page_size) u8,
     length: usize,
-    prot: u32,
+    prot: system.PROT,
     flags: system.MAP,
     fd: fd_t,
     offset: u64,
 ) MMapError![]align(mem.page_size) u8 {
     const mmap_sym = if (lfs64_abi) system.mmap64 else system.mmap;
     const rc = mmap_sym(ptr, length, prot, @bitCast(flags), fd, @bitCast(offset));
-    const err: E = if (builtin.link_libc) blk: {
-        if (rc != std.c.MAP_FAILED) return @as([*]align(mem.page_size) u8, @ptrCast(@alignCast(rc)))[0..length];
-        break :blk @enumFromInt(system._errno().*);
-    } else blk: {
-        const err = errno(rc);
-        if (err == .SUCCESS) return @as([*]align(mem.page_size) u8, @ptrFromInt(rc))[0..length];
-        break :blk err;
-    };
+    if (rc != system.MAP.FAILED) return @as([*]align(system.PAGE_SIZE) u8, @ptrCast(@alignCast(rc)))[0..length];
+    const err = system.errno();
     switch (err) {
         .SUCCESS => unreachable,
         .TXTBSY => return error.AccessDenied,
@@ -5031,7 +5002,7 @@ pub fn sysctlbynameZ(
     }
 }
 
-pub fn gettimeofday(tv: ?*timeval, tz: ?*timezone) void {
+pub fn gettimeofday(tv: ?*timeval_t, tz: ?*timezone) void {
     switch (errno(system.gettimeofday(tv, tz))) {
         .SUCCESS => return,
         .INVAL => unreachable,
@@ -5378,7 +5349,7 @@ pub fn realpathZ(pathname: [*:0]const u8, out_buffer: *[max_path_bytes]u8) RealP
 
         return std.os.getFdPath(fd, out_buffer);
     }
-    const result_path = std.c.realpath(pathname, out_buffer) orelse switch (@as(E, @enumFromInt(std.c._errno().*))) {
+    const result_path = std.c.realpath(pathname, out_buffer) orelse switch (system.errno()) {
         .SUCCESS => unreachable,
         .INVAL => unreachable,
         .BADF => unreachable,
@@ -5427,11 +5398,11 @@ pub fn realpathW(pathname: []const u16, out_buffer: *[max_path_bytes]u8) RealPat
 
 /// Spurious wakeups are possible and no precision of timing is guaranteed.
 pub fn nanosleep(seconds: u64, nanoseconds: u64) void {
-    var req = timespec{
+    var req = timespec_t{
         .tv_sec = cast(isize, seconds) orelse maxInt(isize),
         .tv_nsec = cast(isize, nanoseconds) orelse maxInt(isize),
     };
-    var rem: timespec = undefined;
+    var rem: timespec_t = undefined;
     while (true) {
         switch (errno(system.nanosleep(&req, &rem))) {
             .FAULT => unreachable,
@@ -5453,7 +5424,7 @@ pub fn nanosleep(seconds: u64, nanoseconds: u64) void {
 pub fn dl_iterate_phdr(
     context: anytype,
     comptime Error: type,
-    comptime callback: fn (info: *dl_phdr_info, size: usize, context: @TypeOf(context)) Error!void,
+    comptime callback: fn (info: *dl_phdr_info_t, size: usize, context: @TypeOf(context)) Error!void,
 ) Error!void {
     const Context = @TypeOf(context);
     const elf = std.elf;
@@ -5466,7 +5437,7 @@ pub fn dl_iterate_phdr(
 
     if (builtin.link_libc) {
         switch (system.dl_iterate_phdr(struct {
-            fn callbackC(info: *dl_phdr_info, size: usize, data: ?*anyopaque) callconv(.C) c_int {
+            fn callbackC(info: *dl_phdr_info_t, size: usize, data: ?*anyopaque) callconv(.C) c_int {
                 const context_ptr: *const Context = @ptrCast(@alignCast(data));
                 callback(info, size, context_ptr.*) catch |err| return @intFromError(err);
                 return 0;
@@ -5500,14 +5471,14 @@ pub fn dl_iterate_phdr(
             }
         } else unreachable;
 
-        var info = dl_phdr_info{
+        var info = dl_phdr_info_t{
             .dlpi_addr = base_address,
             .dlpi_name = "/proc/self/exe",
             .dlpi_phdr = phdrs.ptr,
             .dlpi_phnum = ehdr.e_phnum,
         };
 
-        return callback(&info, @sizeOf(dl_phdr_info), context);
+        return callback(&info, @sizeOf(dl_phdr_info_t), context);
     }
 
     // Last return value from the callback function.
@@ -5525,14 +5496,14 @@ pub fn dl_iterate_phdr(
             dlpi_phnum = ehdr.e_phnum;
         }
 
-        var info = dl_phdr_info{
+        var info = dl_phdr_info_t{
             .dlpi_addr = entry.l_addr,
             .dlpi_name = entry.l_name,
             .dlpi_phdr = dlpi_phdr,
             .dlpi_phnum = dlpi_phnum,
         };
 
-        try callback(&info, @sizeOf(dl_phdr_info), context);
+        try callback(&info, @sizeOf(dl_phdr_info_t), context);
     }
 }
 
@@ -5540,7 +5511,7 @@ pub const ClockGetTimeError = error{UnsupportedClock} || UnexpectedError;
 
 /// TODO: change this to return the timespec as a return value
 /// TODO: look into making clk_id an enum
-pub fn clock_gettime(clk_id: i32, tp: *timespec) ClockGetTimeError!void {
+pub fn clock_gettime(clk_id: clockid_t, tp: *timespec_t) ClockGetTimeError!void {
     if (native_os == .wasi and !builtin.link_libc) {
         var ts: timestamp_t = undefined;
         switch (system.clock_time_get(@bitCast(clk_id), 1, &ts)) {
@@ -5556,7 +5527,7 @@ pub fn clock_gettime(clk_id: i32, tp: *timespec) ClockGetTimeError!void {
         return;
     }
     if (native_os == .windows) {
-        if (clk_id == CLOCK.REALTIME) {
+        if (clk_id == .REALTIME) {
             var ft: windows.FILETIME = undefined;
             windows.kernel32.GetSystemTimeAsFileTime(&ft);
             // FileTime has a granularity of 100 nanoseconds and uses the NTFS/Windows epoch.
@@ -5581,7 +5552,7 @@ pub fn clock_gettime(clk_id: i32, tp: *timespec) ClockGetTimeError!void {
     }
 }
 
-pub fn clock_getres(clk_id: i32, res: *timespec) ClockGetTimeError!void {
+pub fn clock_getres(clk_id: clockid_t, res: *timespec_t) ClockGetTimeError!void {
     if (native_os == .wasi and !builtin.link_libc) {
         var ts: timestamp_t = undefined;
         switch (system.clock_res_get(@bitCast(clk_id), &ts)) {
@@ -5637,7 +5608,7 @@ pub fn sigaltstack(ss: ?*stack_t, old_ss: ?*stack_t) SigaltstackError!void {
 }
 
 /// Examine and change a signal action.
-pub fn sigaction(sig: u6, noalias act: ?*const Sigaction, noalias oact: ?*Sigaction) error{OperationNotSupported}!void {
+pub fn sigaction(sig: SIG, noalias act: ?*const sigaction_t, noalias oact: ?*sigaction_t) error{OperationNotSupported}!void {
     switch (errno(system.sigaction(sig, act, oact))) {
         .SUCCESS => return,
         .INVAL, .NOSYS => return error.OperationNotSupported,
@@ -5679,7 +5650,7 @@ pub const FutimensError = error{
     ReadOnlyFileSystem,
 } || UnexpectedError;
 
-pub fn futimens(fd: fd_t, times: *const [2]timespec) FutimensError!void {
+pub fn futimens(fd: fd_t, times: *const [2]timespec_t) FutimensError!void {
     if (native_os == .wasi and !builtin.link_libc) {
         // TODO WASI encodes `wasi.fstflags` to signify magic values
         // similar to UTIME_NOW and UTIME_OMIT. Currently, we ignore
@@ -5783,8 +5754,8 @@ pub fn res_mkquery(
     q[i + 3] = class;
 
     // Make a reasonably unpredictable id
-    var ts: timespec = undefined;
-    clock_gettime(CLOCK.REALTIME, &ts) catch {};
+    var ts: timespec_t = undefined;
+    clock_gettime(.REALTIME, &ts) catch {};
     const UInt = std.meta.Int(.unsigned, @bitSizeOf(@TypeOf(ts.tv_nsec)));
     const unsec: UInt = @bitCast(ts.tv_nsec);
     const id: u32 = @truncate(unsec + unsec / 65536);
@@ -6118,8 +6089,8 @@ pub fn sendfile(
     in_fd: fd_t,
     in_offset: u64,
     in_len: u64,
-    headers: []const iovec_const,
-    trailers: []const iovec_const,
+    headers: []const iovec_const_t,
+    trailers: []const iovec_const_t,
     flags: u32,
 ) SendFileError!usize {
     var header_done = false;
@@ -6205,8 +6176,8 @@ pub fn sendfile(
             return total_written;
         },
         .freebsd => sf: {
-            var hdtr_data: std.c.sf_hdtr = undefined;
-            var hdtr: ?*std.c.sf_hdtr = null;
+            var hdtr_data: system.sf_hdtr_t = undefined;
+            var hdtr: ?*system.sf_hdtr_t = null;
             if (headers.len != 0 or trailers.len != 0) {
                 // Here we carefully avoid `@intCast` by returning partial writes when
                 // too many io vectors are provided.
@@ -6215,7 +6186,7 @@ pub fn sendfile(
 
                 const trl_cnt = cast(u31, trailers.len) orelse maxInt(u31);
 
-                hdtr_data = std.c.sf_hdtr{
+                hdtr_data = .{
                     .headers = headers.ptr,
                     .hdr_cnt = hdr_cnt,
                     .trailers = trailers.ptr,
@@ -6226,7 +6197,7 @@ pub fn sendfile(
 
             while (true) {
                 var sbytes: off_t = undefined;
-                const err = errno(system.sendfile(in_fd, out_fd, @bitCast(in_offset), @min(in_len, max_count), hdtr, &sbytes, flags));
+                const err = errno(system.sendfile(in_fd, out_fd, @bitCast(in_offset), @min(in_len, max_count), hdtr, &sbytes, @bitCast(flags)));
                 const amt: usize = @bitCast(sbytes);
                 switch (err) {
                     .SUCCESS => return amt,
@@ -6364,7 +6335,7 @@ pub fn sendfile(
     return total_written;
 }
 
-fn count_iovec_bytes(iovs: []const iovec_const) usize {
+fn count_iovec_bytes(iovs: []const iovec_const_t) usize {
     var count: usize = 0;
     for (iovs) |iov| {
         count += iov.len;
@@ -6518,9 +6489,9 @@ pub const PPollError = error{
     SystemResources,
 } || UnexpectedError;
 
-pub fn ppoll(fds: []pollfd, timeout: ?*const timespec, mask: ?*const sigset_t) PPollError!usize {
-    var ts: timespec = undefined;
-    var ts_ptr: ?*timespec = null;
+pub fn ppoll(fds: []pollfd, timeout: ?*const timespec_t, mask: ?*const sigset_t) PPollError!usize {
+    var ts: timespec_t = undefined;
+    var ts_ptr: ?*timespec_t = null;
     if (timeout) |timeout_ns| {
         ts_ptr = &ts;
         ts = timeout_ns.*;
@@ -6779,8 +6750,8 @@ pub fn memfd_create(name: []const u8, flags: u32) MemFdCreateError!fd_t {
     return memfd_createZ(&buffer, flags);
 }
 
-pub fn getrusage(who: i32) rusage {
-    var result: rusage = undefined;
+pub fn getrusage(who: i32) rusage_t {
+    var result: rusage_t = undefined;
     const rc = system.getrusage(who, &result);
     switch (errno(rc)) {
         .SUCCESS => return result,
@@ -6986,10 +6957,10 @@ pub fn prctl(option: PR, args: anytype) PrctlError!u31 {
 
 pub const GetrlimitError = UnexpectedError;
 
-pub fn getrlimit(resource: rlimit_resource) GetrlimitError!rlimit {
+pub fn getrlimit(resource: rlimit_resource_t) GetrlimitError!rlimit_t {
     const getrlimit_sym = if (lfs64_abi) system.getrlimit64 else system.getrlimit;
 
-    var limits: rlimit = undefined;
+    var limits: rlimit_t = undefined;
     switch (errno(getrlimit_sym(resource, &limits))) {
         .SUCCESS => return limits,
         .FAULT => unreachable, // bogus pointer
@@ -7000,7 +6971,7 @@ pub fn getrlimit(resource: rlimit_resource) GetrlimitError!rlimit {
 
 pub const SetrlimitError = error{ PermissionDenied, LimitTooBig } || UnexpectedError;
 
-pub fn setrlimit(resource: rlimit_resource, limits: rlimit) SetrlimitError!void {
+pub fn setrlimit(resource: rlimit_resource_t, limits: rlimit_t) SetrlimitError!void {
     const setrlimit_sym = if (lfs64_abi) system.setrlimit64 else system.setrlimit;
 
     switch (errno(setrlimit_sym(resource, &limits))) {

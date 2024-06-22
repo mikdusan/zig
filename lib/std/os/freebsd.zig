@@ -2,39 +2,8 @@ const std = @import("../std.zig");
 const builtin = @import("builtin");
 const testing = std.testing;
 
-pub const c = if (builtin.link_libc) @import("freebsd/c.zig") else missing_feature;
+pub const c = if (builtin.link_libc) @import("freebsd/c.zig") else std.missing_feature;
 pub const sys = @import("freebsd/sys.zig");
-
-/// Check if a top-level decl exists in a namespace.
-/// - absent decl returns false
-/// - otherwise return decl != `missing_feature`
-pub fn Feature(NS: type) type {
-    return struct {
-        /// Check if a top-level decl exists in a namespace.
-        /// - absent decl returns false
-        /// - decl != `missing_feature` returns true
-        pub fn hasFeature(decl: @TypeOf(.EnumLiteral)) bool {
-            comptime {
-                const name = @tagName(decl);
-                if (!@hasDecl(NS, name)) return false;
-                const resolved = @field(NS, name);
-                if (@TypeOf(resolved) != type) return true;
-                return resolved != missing_feature;
-            }
-        }
-
-        pub fn hasFeatures(decls: anytype) bool {
-            comptime {
-                for (decls) |d| if (!hasFeature(d)) return false;
-                return true;
-            }
-        }
-    };
-}
-
-/// Value which represents a missing feature and is relied
-/// upon by `hasFeature*()` functions.
-pub const missing_feature = opaque {};
 
 pub fn Expect(NS: type) type {
     return struct {

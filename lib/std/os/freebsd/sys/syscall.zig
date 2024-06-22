@@ -575,7 +575,7 @@ pub fn syscall0_errno(number: SYS) usize {
         \\ 1:
         : [ret] "={rax}" (-> usize),
     ) == 1) {
-        sys.__error().* = @enumFromInt(result);
+        sys.errno_location().* = @enumFromInt(result);
         return @bitCast(@as(isize, -1));
     }
     return result;
@@ -599,7 +599,7 @@ pub fn syscall1_errno(number: SYS, arg1: usize) usize {
         \\ 1:
         : [ret] "={rax}" (-> usize),
     ) == 1) {
-        sys.__error().* = @enumFromInt(result);
+        sys.errno_location().* = @enumFromInt(result);
         return @bitCast(@as(isize, -1));
     }
     return result;
@@ -624,7 +624,7 @@ pub fn syscall2_errno(number: SYS, arg1: usize, arg2: usize) usize {
         \\ 1:
         : [ret] "={rax}" (-> usize),
     ) == 1) {
-        sys.__error().* = @enumFromInt(result);
+        sys.errno_location().* = @enumFromInt(result);
         return @bitCast(@as(isize, -1));
     }
     return result;
@@ -662,7 +662,7 @@ pub fn syscall3_errno(number: SYS, arg1: usize, arg2: usize, arg3: usize) usize 
         \\ 1:
         : [ret] "={rax}" (-> usize),
     ) == 1) {
-        sys.__error().* = @enumFromInt(result);
+        sys.errno_location().* = @enumFromInt(result);
         return @bitCast(@as(isize, -1));
     }
     return result;
@@ -702,7 +702,7 @@ pub fn syscall4_errno(number: SYS, arg1: usize, arg2: usize, arg3: usize, arg4: 
         \\ 1:
         : [ret] "={rax}" (-> usize),
     ) == 1) {
-        sys.__error().* = @enumFromInt(result);
+        sys.errno_location().* = @enumFromInt(result);
         return @bitCast(@as(isize, -1));
     }
     return result;
@@ -744,7 +744,7 @@ pub fn syscall5_errno(number: SYS, arg1: usize, arg2: usize, arg3: usize, arg4: 
         \\ 1:
         : [ret] "={rax}" (-> usize),
     ) == 1) {
-        sys.__error().* = @enumFromInt(result);
+        sys.errno_location().* = @enumFromInt(result);
         return @bitCast(@as(isize, -1));
     }
     return result;
@@ -773,7 +773,7 @@ pub fn syscall6_errno(number: SYS, arg1: usize, arg2: usize, arg3: usize, arg4: 
         \\ 1:
         : [ret] "={rax}" (-> usize),
     ) == 1) {
-        sys.__error().* = @enumFromInt(result);
+        sys.errno_location().* = @enumFromInt(result);
         return @bitCast(@as(isize, -1));
     }
     return result;

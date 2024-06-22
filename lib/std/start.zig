@@ -599,16 +599,16 @@ fn maybeIgnoreSigpipe() void {
 
     if (have_sigpipe_support and !std.options.keep_sigpipe) {
         const posix = std.posix;
-        const act: posix.Sigaction = .{
+        const act: posix.sigaction_t = .{
             // Set handler to a noop function instead of `SIG.IGN` to prevent
             // leaking signal disposition to a child process.
             .handler = .{ .handler = noopSigHandler },
-            .mask = posix.empty_sigset,
+            .mask = posix.sigset_t.EMPTY,
             .flags = 0,
         };
-        posix.sigaction(posix.SIG.PIPE, &act, null) catch |err|
+        posix.sigaction(.PIPE, &act, null) catch |err|
             std.debug.panic("failed to set noop SIGPIPE handler: {s}", .{@errorName(err)});
     }
 }
 
-fn noopSigHandler(_: i32) callconv(.C) void {}
+fn noopSigHandler(_: std.posix.SIG) callconv(.C) void {}

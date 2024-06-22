@@ -36,7 +36,7 @@ pub usingnamespace switch (native_os) {
     .linux => @import("c/linux.zig"),
     .windows => @import("c/windows.zig"),
     .macos, .ios, .tvos, .watchos, .visionos => @import("c/darwin.zig"),
-    .freebsd, .kfreebsd => @import("c/freebsd.zig"),
+    .freebsd, .kfreebsd => @import("os/freebsd.zig").c,
     .netbsd => @import("c/netbsd.zig"),
     .dragonfly => @import("c/dragonfly.zig"),
     .openbsd => @import("c/openbsd.zig"),

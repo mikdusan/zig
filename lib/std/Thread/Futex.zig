@@ -307,9 +307,9 @@ const FreebsdImpl = struct {
             tm_size = @sizeOf(@TypeOf(tm));
 
             tm._flags = 0; // use relative time not UMTX_ABSTIME
-            tm._clockid = c.CLOCK.MONOTONIC;
-            tm._timeout.tv_sec = @as(@TypeOf(tm._timeout.tv_sec), @intCast(timeout_ns / std.time.ns_per_s));
-            tm._timeout.tv_nsec = @as(@TypeOf(tm._timeout.tv_nsec), @intCast(timeout_ns % std.time.ns_per_s));
+            tm._clockid = .MONOTONIC;
+            tm._timeout.sec = @as(@TypeOf(tm._timeout.sec), @intCast(timeout_ns / std.time.ns_per_s));
+            tm._timeout.nsec = @as(@TypeOf(tm._timeout.nsec), @intCast(timeout_ns % std.time.ns_per_s));
         }
 
         const rc = c._umtx_op(

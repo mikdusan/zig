@@ -114,11 +114,11 @@ pub fn nanoTimestamp() i128 {
             return value.toEpoch();
         },
         else => {
-            var ts: posix.timespec = undefined;
-            posix.clock_gettime(posix.CLOCK.REALTIME, &ts) catch |err| switch (err) {
+            var ts: posix.timespec_t = undefined;
+            posix.clock_gettime(.REALTIME, &ts) catch |err| switch (err) {
                 error.UnsupportedClock, error.Unexpected => return 0, // "Precision of timing depends on hardware and OS".
             };
-            return (@as(i128, ts.tv_sec) * ns_per_s) + ts.tv_nsec;
+            return (@as(i128, ts.sec) * ns_per_s) + ts.nsec;
         },
     }
 }
@@ -173,7 +173,7 @@ pub const s_per_week = s_per_day * 7;
 /// It also tries to be monotonic, but this is not a guarantee due to OS/hardware bugs.
 /// If you need monotonic readings for elapsed time, consider `Timer` instead.
 pub const Instant = struct {
-    timestamp: if (is_posix) posix.timespec else u64,
+    timestamp: if (is_posix) posix.timespec_t else u64,
 
     // true if we should use clock_gettime()
     const is_posix = switch (builtin.os.tag) {
@@ -186,7 +186,7 @@ pub const Instant = struct {
     /// most implementations it is.
     /// Returns `error.Unsupported` when a suitable clock is not detected.
     pub fn now() error{Unsupported}!Instant {
-        const clock_id = switch (builtin.os.tag) {
+        const clock_id: posix.clockid_t = switch (builtin.os.tag) {
             .windows => {
                 // QPC on windows doesn't fail on >= XP/2000 and includes time suspended.
                 return Instant{ .timestamp = windows.QueryPerformanceCounter() };
@@ -205,19 +205,19 @@ pub const Instant = struct {
             },
             // On darwin, use UPTIME_RAW instead of MONOTONIC as it ticks while
             // suspended.
-            .macos, .ios, .tvos, .watchos, .visionos => posix.CLOCK.UPTIME_RAW,
+            .macos, .ios, .tvos, .watchos, .visionos => .UPTIME_RAW,
             // On freebsd derivatives, use MONOTONIC_FAST as currently there's
             // no precision tradeoff.
-            .freebsd, .dragonfly => posix.CLOCK.MONOTONIC_FAST,
+            .freebsd, .dragonfly => .MONOTONIC_FAST,
             // On linux, use BOOTTIME instead of MONOTONIC as it ticks while
             // suspended.
-            .linux => posix.CLOCK.BOOTTIME,
+            .linux => .BOOTTIME,
             // On other posix systems, MONOTONIC is generally the fastest and
             // ticks while suspended.
-            else => posix.CLOCK.MONOTONIC,
+            else => .MONOTONIC,
         };
 
-        var ts: posix.timespec = undefined;
+        var ts: posix.timespec_t = undefined;
         posix.clock_gettime(clock_id, &ts) catch return error.Unsupported;
         return .{ .timestamp = ts };
     }
@@ -229,9 +229,9 @@ pub const Instant = struct {
             return std.math.order(self.timestamp, other.timestamp);
         }
 
-        var ord = std.math.order(self.timestamp.tv_sec, other.timestamp.tv_sec);
+        var ord = std.math.order(self.timestamp.sec, other.timestamp.sec);
         if (ord == .eq) {
-            ord = std.math.order(self.timestamp.tv_nsec, other.timestamp.tv_nsec);
+            ord = std.math.order(self.timestamp.nsec, other.timestamp.nsec);
         }
         return ord;
     }
@@ -267,9 +267,9 @@ pub const Instant = struct {
         }
 
         // Convert timespec diff to ns
-        const seconds = @as(u64, @intCast(self.timestamp.tv_sec - earlier.timestamp.tv_sec));
-        const elapsed = (seconds * ns_per_s) + @as(u32, @intCast(self.timestamp.tv_nsec));
-        return elapsed - @as(u32, @intCast(earlier.timestamp.tv_nsec));
+        const seconds = @as(u64, @intCast(self.timestamp.sec - earlier.timestamp.sec));
+        const elapsed = (seconds * ns_per_s) + @as(u32, @intCast(self.timestamp.nsec));
+        return elapsed - @as(u32, @intCast(earlier.timestamp.nsec));
     }
 };
 
