@@ -154,7 +154,7 @@ pub const clock_settime = if (@hasField(sys.SYS, "clock_settime"))
 else
     std.missing_feature;
 
-pub const exit = if(@hasField(sys.SYS, "exit"))
+pub const exit = if (@hasField(sys.SYS, "exit"))
     struct {
         fn exit(status: c_int) noreturn {
             sys.syscall1_noreturn(.exit, @as(u32, @bitCast(status)));
@@ -1385,7 +1385,7 @@ pub const siginfo_t = extern struct {
 };
 
 pub const sigset_t = extern struct {
-    __bits: [sys.SIG.WORDS]u32 = [1]u32{ 0 } ** sys.SIG.WORDS,
+    __bits: [sys.SIG.WORDS]u32 = [1]u32{0} ** sys.SIG.WORDS,
 
     pub fn add(self: *@This(), sig: sys.SIG) void {
         const signo = @intFromEnum(sig);
@@ -1437,8 +1437,8 @@ pub const sigset_t = extern struct {
         for (&self.__bits, &other.__bits) |*lhs, rhs| lhs.* |= rhs;
     }
 
-    pub const EMPTY: @This() = .{ .__bits = [1]u32{ 0 } ** sys.SIG.WORDS };
-    pub const FULL: @This() = .{ .__bits = [1]u32{ 0xffff_ffff } ** sys.SIG.WORDS };
+    pub const EMPTY: @This() = .{ .__bits = [1]u32{0} ** sys.SIG.WORDS };
+    pub const FULL: @This() = .{ .__bits = [1]u32{0xffff_ffff} ** sys.SIG.WORDS };
 
     comptime {
         const size = 16;
