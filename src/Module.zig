@@ -2335,7 +2335,7 @@ pub fn astGenFile(mod: *Module, file: *File) !void {
         .stat_inode = stat.inode,
         .stat_mtime = stat.mtime,
     };
-    var iovecs = [_]std.posix.iovec_const{
+    var iovecs = [_]std.posix.iovec_const_t{
         .{
             .base = @as([*]const u8, @ptrCast(&header)),
             .len = @sizeOf(Zir.Header),
@@ -2423,7 +2423,7 @@ fn loadZirCacheBody(gpa: Allocator, header: Zir.Header, cache_file: std.fs.File)
     else
         @as([*]u8, @ptrCast(zir.instructions.items(.data).ptr));
 
-    var iovecs = [_]std.posix.iovec{
+    var iovecs = [_]std.posix.iovec_t{
         .{
             .base = @as([*]u8, @ptrCast(zir.instructions.items(.tag).ptr)),
             .len = header.instructions_len,

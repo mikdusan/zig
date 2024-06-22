@@ -161,9 +161,9 @@ pub fn attachSegfaultHandler() void {
         _ = windows.kernel32.AddVectoredExceptionHandler(0, handleSegfaultWindows);
         return;
     }
-    var act: posix.Sigaction = .{
-        .handler = .{ .sigaction = handleSegfaultPosix },
-        .mask = posix.empty_sigset,
+    var act: posix.sigaction_t = .{
+        .handler = .{ .action = handleSegfaultPosix },
+        .mask = posix.sigset_t.EMPTY,
         .flags = (posix.SA.SIGINFO | posix.SA.RESTART | posix.SA.RESETHAND),
     };
 
@@ -172,7 +172,7 @@ pub fn attachSegfaultHandler() void {
     };
 }
 
-fn handleSegfaultPosix(sig: i32, info: *const posix.siginfo_t, ctx_ptr: ?*anyopaque) callconv(.C) noreturn {
+fn handleSegfaultPosix(sig: posix.SIG, info: *const posix.siginfo_t, ctx_ptr: ?*anyopaque) callconv(.C) noreturn {
     // TODO: use alarm() here to prevent infinite loops
     PanicSwitch.preDispatch();
 

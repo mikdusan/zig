@@ -45,6 +45,7 @@ const wasi = std.os.wasi;
 pub const system = if (use_libc)
     std.c
 else switch (native_os) {
+    .freebsd => std.os.freebsd.sys,
     .linux => linux,
     .plan9 => std.os.plan9,
     else => struct {},

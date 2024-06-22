@@ -24,9 +24,11 @@ pub extern "c" fn dl_iterate_phdr(callback: c.dl_iterate_phdr_callback, data: ?*
 pub extern "c" fn dup(fd: c.fd_t) c_int;
 pub extern "c" fn dup2(old: c.fd_t, new: c.fd_t) c_int;
 pub extern "c" fn exit(status: c_int) noreturn;
+pub extern "c" fn _exit(status: c_int) noreturn;
 pub extern "c" fn fcntl(fd: c.fd_t, cmd: c_int, ...) c_int;
 pub extern "c" fn fdclosedir(dirp: *c.DIR) c.fd_t;
 pub extern "c" fn fdopendir(fd: c.fd_t) ?*c.DIR;
+pub extern "c" fn fork() c_int;
 pub extern "c" fn fstat(fd: c.fd_t, info: *c.stat_t) c_int;
 pub extern "c" fn fstatat(fd: c.fd_t, noalias path: [*:0]const u8, noalias info: *c.stat_t, flags: c.AT) c_int;
 pub extern "c" fn futimens(fd: c.fd_t, times: *const [2]c.timespec_t) c_int;
@@ -78,6 +80,14 @@ pub extern "c" fn write(fd: c.fd_t, buf: [*]const u8, len: usize) isize;
 pub extern "c" fn writev(fd: c.fd_t, iov: [*]const c.iovec_const_t, iovcnt: c_int) isize;
 pub extern "c" fn sched_yield() c_int;
 pub extern "c" fn rmdir(path: [*:0]const u8) c_int;
+
+pub extern "c" fn getresgid(rgid: c.gid_t, egid: c.gid_t) c_int;
+pub extern "c" fn getresuid(ruid: c.uid_t, euid: c.uid_t) c_int;
+
+pub extern "c" fn setreuid(ruid: c.uid_t, euid: c.uid_t) c_int;
+pub extern "c" fn setregid(rgid: c.gid_t, egid: c.gid_t) c_int;
+pub extern "c" fn setresuid(ruid: c.uid_t, euid: c.uid_t, suid: c.uid_t) c_int;
+pub extern "c" fn setresgid(rgid: c.gid_t, egid: c.gid_t, sgid: c.gid_t) c_int;
 
 pub const AT = sys.AT;
 pub const DIR = opaque {};
@@ -193,8 +203,16 @@ pub const addrinfo = sys.addrinfo;
 pub const SHUT = sys.SHUT;
 pub const kinfo_file = sys.kinfo_file;
 pub const cap_rights = sys.cap_rights;
+pub const W = sys.W;
+pub const pollfd = sys.pollfd;
+pub const POLL = sys.POLL;
+pub const nfds_t = sys.nfds_t;
 
 pub extern "c" fn sigaltstack(ss: ?*c.stack_t, oss: ?*c.stack_t) c_int;
+
+pub extern "c" fn chdir(path: [*:0]const u8) c_int;
+pub extern "c" fn fchdir(fd: c.fd_t) c_int;
+pub extern "c" fn execve(path: [*:0]const u8, argv: [*:null]const ?[*:0]const u8, envp: [*:null]const ?[*:0]const u8) c_int;
 
 pub extern "c" fn memfd_create(name: [*:0]const u8, flags: c.O) c_int;
 pub extern "c" fn copy_file_range(in: c.fd_t, inoffp: ?*c.off_t, out: fd_t, outoffp: ?*c.off_t, len: usize, flags: u32) usize;
@@ -490,3 +508,9 @@ pub const RTLD = struct {
 pub extern "c" fn sync() void;
 pub extern "c" fn fsync(fd: c.fd_t) c_int;
 pub extern "c" fn fdatasync(fd: c.fd_t) c_int;
+
+pub extern "c" fn waitpid(pid: c.pid_t, status: ?*c_int, options: c_int) c.pid_t;
+pub extern "c" fn wait4(pid: c.pid_t, status: ?*c_int, options: c_int, rusage: ?*c.rusage_t) c.pid_t;
+
+pub extern "c" fn poll(fds: [*]c.pollfd, nfds: c.nfds_t, timeout: c_int) c_int;
+pub extern "c" fn ppoll(fds: [*]c.pollfd, nfds: c.nfds_t, noalias timeout: ?*const c.timespec_v, noalias sigmask: ?*const c.sigset_t) c_int;

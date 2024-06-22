@@ -2738,7 +2738,7 @@ const Header = extern struct {
 /// saved, such as the target and most CLI flags. A cache hit will only occur
 /// when subsequent compiler invocations use the same set of flags.
 pub fn saveState(comp: *Compilation) !void {
-    var bufs_list: [19]std.posix.iovec_const = undefined;
+    var bufs_list: [19]std.posix.iovec_const_t = undefined;
     var bufs_len: usize = 0;
 
     const lf = comp.bin_file orelse return;
@@ -2805,7 +2805,7 @@ pub fn saveState(comp: *Compilation) !void {
     try af.finish();
 }
 
-fn addBuf(bufs_list: []std.posix.iovec_const, bufs_len: *usize, buf: []const u8) void {
+fn addBuf(bufs_list: []std.posix.iovec_const_t, bufs_len: *usize, buf: []const u8) void {
     const i = bufs_len.*;
     bufs_len.* = i + 1;
     bufs_list[i] = .{
@@ -3781,7 +3781,7 @@ fn docsCopyModule(comp: *Compilation, module: *Package.Module, name: []const u8,
             break :p padding_buffer[0..n];
         };
 
-        var header_and_trailer: [2]std.posix.iovec_const = .{
+        var header_and_trailer: [2]std.posix.iovec_const_t = .{
             .{ .base = header_bytes.ptr, .len = header_bytes.len },
             .{ .base = padding.ptr, .len = padding.len },
         };

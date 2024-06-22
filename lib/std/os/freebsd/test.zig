@@ -1,13 +1,12 @@
 //! This file tests both { c, sys } calls.
 const std = @import("../../std.zig");
 const builtin = @import("builtin");
-const c = std.os.freebsd.c;
-const expect = std.os.freebsd.Expect(c);
-const sys = std.os.freebsd.sys;
 const testing = std.testing;
 
 fn Test(NS: type) type {
     return struct {
+        const expect = std.os.freebsd.Expect(NS);
+
         const invalid_clockid: NS.clockid_t = @enumFromInt(std.math.maxInt(@typeInfo(NS.clockid_t).Enum.tag_type));
         const invalid_priority: c_int = std.math.maxInt(c_int);
 
@@ -128,6 +127,39 @@ fn Test(NS: type) type {
             var info: NS.stat_t = undefined;
             _ = try expect.sentinelNoError(-1, NS.fstatat(tmp.dir.fd, basename, &info, .{}));
             try testing.expectEqual(5, info.size);
+        }
+
+        test "futimens" {
+            if (!comptime NS.hasFeature(.futimens)) return error.SkipZigTest;
+
+            var arena_s = std.heap.ArenaAllocator.init(testing.allocator);
+            defer arena_s.deinit();
+            const arena = arena_s.allocator();
+            var tmp = try TmpDir.init(arena, .{});
+            defer tmp.cleanup();
+
+            const basename = "tiny.txt";
+            const file = try tmp.dir.createFile(basename, .{});
+            defer file.close();
+            try file.writeAll("12345");
+
+            var info: NS.stat_t = undefined;
+            _ = try expect.sentinelNoError(-1, NS.fstat(file.handle, &info));
+            try testing.expectEqual(5, info.size);
+
+            // bump by 1 year and set
+            var times = [_]NS.timespec_t{
+                info.atim,
+                info.mtim,
+            };
+            times[0].sec += 3600 * 24 * 365;
+            times[1].sec += 3600 * 24 * 365;
+            _ = try expect.sentinelNoError(-1, NS.futimens(file.handle, &times));
+
+            // stat again and check times (only .sec to avoid filesystem capability differences)
+            _ = try expect.sentinelNoError(-1, NS.fstat(file.handle, &info));
+            try testing.expectEqual(times[0].sec, info.atim.sec);
+            try testing.expectEqual(times[1].sec, info.mtim.sec);
         }
 
         test "getdents" {
@@ -517,7 +549,7 @@ fn Test(NS: type) type {
         test "sigset_t" {
             if (!comptime NS.hasFeature(.sigset_t)) return error.SkipZigTest;
 
-            var ss0: sys.sigset_t = .{};
+            var ss0: NS.sigset_t = .{};
             try testing.expectEqual(true, ss0.is_empty());
             try testing.expectEqual(false, ss0.is_member(.HUP));
 
@@ -528,7 +560,7 @@ fn Test(NS: type) type {
             try testing.expectEqual(true, ss0.is_full());
             try testing.expectEqual(true, ss0.is_member(.HUP));
 
-            var ss1: sys.sigset_t = .{};
+            var ss1: NS.sigset_t = .{};
             ss0.empty();
             ss1.empty();
             ss0.and_with(ss1);
@@ -654,6 +686,6 @@ const TmpDir = struct {
 };
 
 comptime {
-    _ = Test(sys);
-    _ = if (builtin.link_libc) Test(c);
+    _ = Test(std.os.freebsd.sys);
+    _ = if (builtin.link_libc) Test(std.os.freebsd.c);
 }

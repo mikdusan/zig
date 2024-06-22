@@ -16,6 +16,8 @@ pub const SYS = syscall.SYS;
 
 pub const syscall0_errno = syscall.syscall0_errno;
 pub const syscall1_errno = syscall.syscall1_errno;
+pub const syscall1_noerrno = syscall.syscall1_noerrno;
+pub const syscall1_noreturn = syscall.syscall1_noreturn;
 pub const syscall2_errno = syscall.syscall2_errno;
 pub const syscall2_noerrno = syscall.syscall2_noerrno;
 pub const syscall3_errno = syscall.syscall3_errno;
@@ -152,6 +154,15 @@ pub const clock_settime = if (@hasField(sys.SYS, "clock_settime"))
 else
     std.missing_feature;
 
+pub const exit = if(@hasField(sys.SYS, "exit"))
+    struct {
+        fn exit(status: c_int) noreturn {
+            sys.syscall1_noreturn(.exit, @as(u32, @bitCast(status)));
+        }
+    }.exit
+else
+    std.missing_feature;
+
 pub const fstat = if (@hasField(sys.SYS, "fstat@12"))
     struct {
         fn fstat(fd: sys.fd_t, info: *sys.stat_t) c_int {
@@ -179,6 +190,20 @@ pub const fstatat = if (@hasField(sys.SYS, "fstatat@12"))
             return @bitCast(@as(u32, @truncate(rv)));
         }
     }.fstatat
+else
+    std.missing_feature;
+
+pub const futimens = if (@hasField(sys.SYS, "futimens"))
+    struct {
+        fn futimens(fd: sys.fd_t, times: *const [2]sys.timespec_t) c_int {
+            const rv = sys.syscall2_errno(
+                .futimens,
+                @as(u32, @bitCast(fd)),
+                @intFromPtr(times),
+            );
+            return @bitCast(@as(u32, @truncate(rv)));
+        }
+    }.futimens
 else
     std.missing_feature;
 
@@ -2292,3 +2317,67 @@ pub const CAP_RIGHTS_VERSION = 0;
 pub const cap_rights = extern struct {
     rights: [CAP_RIGHTS_VERSION + 2]u64,
 };
+
+pub const W = struct {
+    pub const NOHANG = 1;
+    pub const UNTRACED = 2;
+    pub const STOPPED = UNTRACED;
+    pub const CONTINUED = 4;
+    pub const NOWAIT = 8;
+    pub const EXITED = 16;
+    pub const TRAPPED = 32;
+
+    pub fn EXITSTATUS(s: u32) u8 {
+        return @as(u8, @intCast((s & 0xff00) >> 8));
+    }
+    pub fn TERMSIG(s: u32) u32 {
+        return s & 0x7f;
+    }
+    pub fn STOPSIG(s: u32) u32 {
+        return EXITSTATUS(s);
+    }
+    pub fn IFEXITED(s: u32) bool {
+        return TERMSIG(s) == 0;
+    }
+    pub fn IFSTOPPED(s: u32) bool {
+        return @as(u16, @truncate((((s & 0xffff) *% 0x10001) >> 8))) > 0x7f00;
+    }
+    pub fn IFSIGNALED(s: u32) bool {
+        return (s & 0xffff) -% 1 < 0xff;
+    }
+};
+
+pub const pollfd = extern struct {
+    fd: sys.fd_t,
+    events: i16,
+    revents: i16,
+};
+
+pub const POLL = struct {
+    /// any readable data available.
+    pub const IN = 0x0001;
+    /// OOB/Urgent readable data.
+    pub const PRI = 0x0002;
+    /// file descriptor is writeable.
+    pub const OUT = 0x0004;
+    /// non-OOB/URG data available.
+    pub const RDNORM = 0x0040;
+    /// no write type differentiation.
+    pub const WRNORM = OUT;
+    /// OOB/Urgent readable data.
+    pub const RDBAND = 0x0080;
+    /// OOB/Urgent data can be written.
+    pub const WRBAND = 0x0100;
+    /// like IN, except ignore EOF.
+    pub const INIGNEOF = 0x2000;
+    /// some poll error occurred.
+    pub const ERR = 0x0008;
+    /// file descriptor was "hung up".
+    pub const HUP = 0x0010;
+    /// requested events "invalid".
+    pub const NVAL = 0x0020;
+
+    pub const STANDARD = IN | PRI | OUT | RDNORM | RDBAND | WRBAND | ERR | HUP | NVAL;
+};
+
+pub const nfds_t = u32;
