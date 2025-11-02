@@ -5,6 +5,7 @@ const SO = std.c.SO;
 const fd_t = std.c.fd_t;
 const gid_t = std.c.gid_t;
 const ino_t = std.c.ino_t;
+const lwpid_t = std.c.lwpid_t;
 const mode_t = std.c.mode_t;
 const off_t = std.c.off_t;
 const pid_t = std.c.pid_t;
@@ -455,3 +456,7 @@ pub const IPTOS = struct {
     pub const PREC_PRIORITY = 0x20;
     pub const PREC_ROUTINE = 0x00;
 };
+
+pub extern "c" fn __lwp_park(timeout: ?*timespec, lwpid: lwpid_t) i32;
+pub extern "c" fn __lwp_unpark(lwpid: lwpid_t) i32;
+pub extern "c" fn __lwp_unpark_all(lwpids: [*]const lwpid_t, nids: i32) i32;

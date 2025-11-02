@@ -5708,6 +5708,18 @@ fn futexWait(t: *Threaded, ptr: *const std.atomic.Value(u32), expect: u32) Io.Ca
                 else => unreachable,
             };
         },
+        .illumos => {
+            try t.checkCancel();
+            const rc = std.c.__lwp_park(null, 0);
+            if (is_debug) switch (posix.errno(rc)) {
+                .SUCCESS => {},
+                .FAULT => unreachable,
+                .INTR => {}, // spurious wake
+                .INVAL => unreachable,
+                .TIME => unreachable, // we do not set timeout
+                else => unreachable,
+            };
+        },
         else => @compileError("unimplemented: futexWait"),
     }
 }
@@ -5791,6 +5803,17 @@ pub fn futexWaitUncancelable(ptr: *const std.atomic.Value(u32), expect: u32) voi
                 .TIMEDOUT => recoverableOsBugDetected(), // no timeout provided
                 else => recoverableOsBugDetected(),
             }
+        },
+        .illumos => {
+            const rc = std.c.__lwp_park(null, 0);
+            if (is_debug) switch (posix.errno(rc)) {
+                .SUCCESS => {},
+                .FAULT => recoverableOsBugDetected(),
+                .INTR => {}, // spurious wake
+                .INVAL => recoverableOsBugDetected(),
+                .TIME => recoverableOsBugDetected(), // we do not set timeout
+                else => recoverableOsBugDetected(),
+            };
         },
         else => @compileError("unimplemented: futexWaitUncancelable"),
     }
@@ -5889,6 +5912,9 @@ pub fn futexWake(ptr: *const std.atomic.Value(u32), max_waiters: u32) void {
                 else => unreachable, // deadlock due to operating system bug
             }
         },
+        .illumos => {
+            @compileError("we don't have a way to unpark all parked threads on Illumos");
+        },
         else => @compileError("unimplemented: futexWake"),
     }
 }
@@ -5898,7 +5924,7 @@ pub fn futexWake(ptr: *const std.atomic.Value(u32), max_waiters: u32) void {
 /// It can also block threads until the value is set with cancelation via timed
 /// waits. Statically initializable; four bytes on all targets.
 pub const ResetEvent = switch (native_os) {
-    .illumos, .netbsd => ResetEventPosix,
+    .netbsd => ResetEventPosix,
     else => ResetEventFutex,
 };
 

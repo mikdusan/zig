@@ -2802,7 +2802,6 @@ pub const SIG = switch (native_os) {
         QUIT = 3,
         ILL = 4,
         TRAP = 5,
-        IOT = 6,
         ABRT = 6,
         EMT = 7,
         FPE = 8,
@@ -2815,7 +2814,6 @@ pub const SIG = switch (native_os) {
         TERM = 15,
         USR1 = 16,
         USR2 = 17,
-        CLD = 18,
         CHLD = 18,
         PWR = 19,
         WINCH = 20,
@@ -4093,6 +4091,14 @@ pub const linger = switch (native_os) {
         linger: i32, // time to linger in seconds
     },
     else => void,
+};
+
+pub const lwpid_t = switch (native_os) {
+    .dragonfly => i32,
+    .freebsd => i32,
+    .illumos =>  u32,
+    .netbsd => i32,
+    else => {},
 };
 
 pub const msghdr = switch (native_os) {
@@ -11015,6 +11021,10 @@ pub const signalfd_siginfo = illumos.signalfd_siginfo;
 pub const taskid_t = illumos.taskid_t;
 pub const zoneid_t = illumos.zoneid_t;
 
+pub const __lwp_park = illumos.__lwp_park;
+pub const __lwp_unpark = illumos.__lwp_unpark;
+pub const __lwp_unpark_all = illumos.__lwp_unpark_all;
+
 pub const DirEnt = haiku.DirEnt;
 pub const _get_next_area_info = haiku._get_next_area_info;
 pub const _get_next_image_info = haiku._get_next_image_info;
@@ -11325,7 +11335,6 @@ pub const vm_region_flavor_t = darwin.vm_region_flavor_t;
 
 pub const _ksiginfo = netbsd._ksiginfo;
 pub const _lwp_self = netbsd._lwp_self;
-pub const lwpid_t = netbsd.lwpid_t;
 
 pub const lwp_gettid = dragonfly.lwp_gettid;
 pub const umtx_sleep = dragonfly.umtx_sleep;

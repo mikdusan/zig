@@ -1,13 +1,12 @@
 const std = @import("../std.zig");
 const clock_t = std.c.clock_t;
+const lwpid_t = std.c.lwpid_t;
 const pid_t = std.c.pid_t;
 const pthread_t = std.c.pthread_t;
 const sigval_t = std.c.sigval_t;
 const uid_t = std.c.uid_t;
 
 pub extern "c" fn ptrace(request: c_int, pid: pid_t, addr: ?*anyopaque, data: c_int) c_int;
-
-pub const lwpid_t = i32;
 
 pub extern "c" fn _lwp_self() lwpid_t;
 pub extern "c" fn pthread_setname_np(thread: pthread_t, name: [*:0]const u8, arg: ?*anyopaque) c_int;

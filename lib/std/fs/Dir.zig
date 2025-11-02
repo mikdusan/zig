@@ -152,8 +152,10 @@ pub const Iterator = switch (native_os) {
                 ) catch |err| switch (err) {
                     error.NameTooLong => unreachable,
                     error.SymLinkLoop => unreachable,
+                    // TODO: REVIEW: sus, if we lose the race, why crash?
                     error.FileNotFound => unreachable, // lost the race
-                    else => |e| return e,
+                    // TODO: REVIEW: awful temporary hack
+                    else => return error.Unexpected,
                 };
                 const entry_kind: Entry.Kind = switch (stat_info.mode & posix.S.IFMT) {
                     posix.S.IFIFO => .named_pipe,
